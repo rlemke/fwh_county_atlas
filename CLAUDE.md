@@ -64,9 +64,13 @@ Tier-2 layers carry a small field naming their source; the matching module build
 - **`health.py`** — a `places` field (a CDC PLACES `measureid`, e.g. `OBESITY`). Reuses
   `census.fetch_tracts()` geometry + the same choropleth shape; data from the keyless CDC
   Socrata PLACES tract dataset by county FIPS.
-- **`epa.py`** — an `epa_source` field (`tri`). EPA TRI facilities fetched per-county from
-  Envirofacts (`STATE_ABBR` + `COUNTY_NAME`, coords in `pref_latitude/longitude`) →
-  point FeatureCollection injected into `materialized`, rendered like an OSM point layer.
+- **`epa.py`** — an `epa_source` field (`tri` | `superfund` | `brownfields`). **TRI** is a
+  per-county Envirofacts query (`STATE_ABBR` + `COUNTY_NAME`, coords in
+  `pref_latitude/longitude`). **Superfund/Brownfields** use the **shared national cache**:
+  the EMEF ArcGIS MapServer only serves the national set (`where=1=1`, paginated by
+  `resultOffset`), so it's fetched once → cached at `county-atlas/_shared/epa_<ds>.geojson`
+  → bbox-clipped per county (EMEF props are lowercase — `primary_name`, `county_name`,
+  `fips_code`). All three → point FeatureCollections injected into `materialized`.
 - **`usgs.py`** — a `usgs_source` field (`earthquakes` | `aquifers`). USGS FDSN event API
   (bbox query → points) + the Principal-Aquifers ArcGIS FeatureServer (bbox envelope →
   polygons). Both bbox-scoped from the OSM county boundary → `materialized`.
@@ -99,9 +103,6 @@ assertion in the same change.
 
 ## Not yet done
 
-- EPA **Superfund/Brownfields** — apply `noaa.py`'s shared-national-cache pattern (EMEF
-  ArcGIS has no county filter): fetch the national set once → cache under `_shared/` →
-  bbox-filter per county.
 - Tier-3 calculated indicators (isochrone coverage via `osm.Network`, per-capita).
 - Master-index state/US pages beyond the flat grouped list.
 - Fleet registration (`domains.json` + image bake) — this is a local domain today.

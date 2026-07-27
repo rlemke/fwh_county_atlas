@@ -125,9 +125,26 @@ def test_places_and_tri_catalog_flags():
 def test_epa_state_abbr_and_layer_filter():
     from county_atlas.tools._county_atlas_tools import epa
     assert epa.STATE_ABBR["oregon"] == "OR" and epa.STATE_ABBR["district-of-columbia"] == "DC"
-    # no epa_source=tri layers -> no fetch, empty result (offline)
+    # no handled epa_source layers -> no fetch, empty result (offline)
     assert epa.build_epa_points("oregon", "coos", [{"id": "x", "epa_source": "other"}],
                                 "OR", "Coos") == {}
+
+
+def test_epa_superfund_brownfields_catalog_and_clip():
+    from county_atlas.tools._county_atlas_tools import epa
+    layers = catalog.load_catalog()["layers"]
+    assert any(l.get("epa_source") == "superfund" for l in layers)
+    assert any(l.get("epa_source") == "brownfields" for l in layers)
+    # _clip_points: keep in-bbox points, drop out-of-bbox, normalize name from EMEF keys
+    national = {"features": [
+        {"geometry": {"type": "Point", "coordinates": [-123.5, 43.4]},
+         "properties": {"primary_name": "ACME SITE"}},
+        {"geometry": {"type": "Point", "coordinates": [-100.0, 40.0]},
+         "properties": {"primary_name": "FAR SITE"}},
+    ]}
+    clipped = epa._clip_points(national, (-124.6, 42.8, -123.8, 43.7))
+    assert len(clipped) == 1 and clipped[0]["properties"]["name"] == "ACME SITE"
+    assert epa._name({"primary_name": "X"}) == "X" and epa._name({"other": "Y"}) is None
 
 
 def test_health_degrades_gracefully_without_key(monkeypatch):

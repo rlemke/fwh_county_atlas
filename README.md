@@ -19,7 +19,7 @@ Full architecture: [`docs/architecture/county-atlas.md`](https://github.com/rlem
 | **Materializer** — osmium: county PBF → per-layer GeoJSON | [`materialize.py`](src/county_atlas/tools/_county_atlas_tools/materialize.py) |
 | **Tier-2 census join** — ACS → tract geometry → per-county choropleths (reuses `census-us` metric registry) | [`census.py`](src/county_atlas/tools/_county_atlas_tools/census.py) |
 | **Tier-2 health join** — CDC PLACES tract prevalence → choropleths | [`health.py`](src/county_atlas/tools/_county_atlas_tools/health.py) |
-| **Tier-2 EPA join** — TRI facilities → per-county points | [`epa.py`](src/county_atlas/tools/_county_atlas_tools/epa.py) |
+| **Tier-2 EPA join** — TRI (per-county) + Superfund/Brownfields (shared national cache) → points | [`epa.py`](src/county_atlas/tools/_county_atlas_tools/epa.py) |
 | **Tier-2 USGS join** — earthquakes (bbox) + aquifers (ArcGIS) | [`usgs.py`](src/county_atlas/tools/_county_atlas_tools/usgs.py) |
 | **Tier-2 FEMA join** — National Risk Index tract choropleth | [`fema.py`](src/county_atlas/tools/_county_atlas_tools/fema.py) |
 | **Tier-2 NOAA join** — GHCN weather stations (shared cache) | [`noaa.py`](src/county_atlas/tools/_county_atlas_tools/noaa.py) |

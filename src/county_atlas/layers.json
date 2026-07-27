@@ -1497,7 +1497,12 @@
       "privacy": "public",
       "coverage": "national",
       "tier": 2,
-      "license": "EPA SEMS (public domain)"
+      "license": "EPA SEMS (public domain)",
+      "epa_source": "superfund",
+      "style": {
+        "marker": "triangle",
+        "color": "#6d4c41"
+      }
     },
     {
       "id": "epa.brownfields",
@@ -1512,7 +1517,12 @@
       "privacy": "public",
       "coverage": "national",
       "tier": 2,
-      "license": "EPA ACRES (public domain)"
+      "license": "EPA ACRES (public domain)",
+      "epa_source": "brownfields",
+      "style": {
+        "marker": "square",
+        "color": "#8d6e63"
+      }
     },
     {
       "id": "epa.tri",

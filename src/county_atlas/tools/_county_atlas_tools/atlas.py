@@ -64,18 +64,20 @@ def build_county_atlas(county_key: str, tier: int = 1, bucket: str = storage.BUC
                 choropleths.update(health.build_places_choropleths(
                     state, county, [l for l in cat_layers if l.get("places")],
                     on_log=log, tracts=tracts, sf=sf, cf=cf))
-            ab = epa.STATE_ABBR.get(state)
-            if cname and ab:
-                for lid, fc in epa.build_epa_points(
-                        state, county, [l for l in cat_layers if l.get("epa_source")],
-                        ab, cname, on_log=log).items():
-                    materialized[lid] = fc
-                    counts[lid] = len(fc["features"])
-
-            # bbox-scoped USGS (earthquakes/aquifers) + NOAA (GHCN stations)
-            from . import noaa, render as _render, usgs
+            # county bbox from the OSM boundary — used by EPA(super/brown), USGS, NOAA
+            from . import fema, noaa, render as _render, usgs
             bbox = _render._bbox(
                 materialized.get("osm.county_boundary", {}).get("features", []))
+
+            # EPA: TRI (per-county) + Superfund/Brownfields (shared national cache -> bbox)
+            for lid, fc in epa.build_epa_points(
+                    state, county, [l for l in cat_layers if l.get("epa_source")],
+                    epa.STATE_ABBR.get(state), cname,
+                    bbox=bbox, s3=s3, bucket=bucket, on_log=log).items():
+                materialized[lid] = fc
+                counts[lid] = len(fc["features"])
+
+            # bbox-scoped USGS (earthquakes/aquifers) + NOAA (GHCN stations)
             if bbox:
                 for lid, fc in usgs.build_usgs(
                         bbox, [l for l in cat_layers if l.get("usgs_source")],
@@ -90,7 +92,6 @@ def build_county_atlas(county_key: str, tier: int = 1, bucket: str = storage.BUC
 
             # FEMA National Risk Index tract choropleth (needs county FIPS)
             if sf and cf:
-                from . import fema
                 choropleths.update(fema.build_nri(
                     sf, cf, [l for l in cat_layers if l.get("fema_source")], on_log=log))
 
