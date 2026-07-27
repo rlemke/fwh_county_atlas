@@ -1,0 +1,87 @@
+// County Atlas — per-county information maps + a US -> state -> county master index.
+//
+// One generic, catalog-driven renderer over the per-county OSM extracts produced by
+// the osm.planet pipeline (north-america/us/<state>/<county>-latest.osm.pbf). The layer
+// set is defined ONCE in layers.json (46 tier-1 layers read straight from the county
+// PBF; the rest are catalogued with their real Census/EPA/USGS/CDC source and shown as
+// "needs data" until fetched). Output -> county-atlas/<state>/<county>/index.html (MinIO).
+
+namespace county.atlas {
+    /** List the county-extract leaves under `prefix` (each is
+      * north-america/us/<state>/<county>). This is the fan-out unit for
+      * BuildAtlasFanout — one county per BuildCountyAtlas task. */
+    event facet ListCounties(
+        prefix: String = "north-america/us",
+        bucket: String = "osm-extracts"
+    ) => (
+        counties: [String],
+        count: Long
+    ) with Effect(kind = "io") with Cost(tier = "free")
+
+    /** Build ONE county's atlas: download its OSM extract, materialize every tier-<=`tier`
+      * layer whose source is that PBF, render a self-contained HTML atlas + manifest, and
+      * write them to the object store. `county_key` = north-america/us/<state>/<county>. */
+    event facet BuildCountyAtlas(
+        county_key: String,
+        tier: Long = 1,
+        bucket: String = "osm-extracts"
+    ) => (
+        html_path: String,
+        layer_count: Long,
+        feature_count: Long
+    ) with Effect(kind = "external") with Cost(tier = "moderate") with Timeout(minutes = 20)
+
+    /** Build the US -> state -> county master index over every county atlas already
+      * written under county-atlas/ (grouped by state, linked, with per-county layer counts). */
+    event facet BuildMasterIndex(
+        prefix: String = "north-america/us",
+        bucket: String = "osm-extracts"
+    ) => (
+        index_path: String,
+        county_count: Long
+    ) with Effect(kind = "io") with Cost(tier = "cheap") with Timeout(minutes = 15)
+}
+
+namespace county.atlas.workflows {
+    use county.atlas
+
+    /** Build a single county's atlas map. */
+    workflow BuildCountyAtlasMap(
+        county_key: String,
+        tier: Long = 1
+    ) => (status: String, html_path: String, layer_count: Long, feature_count: Long) andThen {
+        atlas = BuildCountyAtlas(county_key = $.county_key, tier = $.tier)
+        yield BuildCountyAtlasMap(
+            status = "completed",
+            html_path = atlas.html_path,
+            layer_count = atlas.layer_count,
+            feature_count = atlas.feature_count
+        )
+    }
+
+    /** FAN-OUT: one BuildCountyAtlas per county leaf under `prefix`, distributed across
+      * the fleet. ~3,143 counties run in PARALLEL; wall-clock ~= the slowest county, not
+      * the sum. Add runners to go faster. */
+    workflow BuildAtlasFanout(
+        prefix: String = "north-america/us",
+        tier: Long = 1,
+        bucket: String = "osm-extracts"
+    ) => (built: [String]) andThen {
+        children = county.atlas.ListCounties(prefix = $.prefix, bucket = $.bucket) andThen foreach cty in $.counties {
+            leaf = county.atlas.BuildCountyAtlas(county_key = $.cty, tier = $$.tier, bucket = $$.bucket)
+            yield BuildAtlasFanout(built = [leaf.html_path])
+        }
+    }
+
+    /** Build the master index (run after a fan-out has populated the atlases). */
+    workflow BuildMasterIndexMap(
+        prefix: String = "north-america/us"
+    ) => (status: String, index_path: String, county_count: Long) andThen {
+        idx = BuildMasterIndex(prefix = $.prefix)
+        yield BuildMasterIndexMap(
+            status = "completed",
+            index_path = idx.index_path,
+            county_count = idx.county_count
+        )
+    }
+}

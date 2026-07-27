@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "county-atlas"
+version = "0.1.0"
+description = "Facetwork domain: per-county information maps + a US->state->county master index"
+requires-python = ">=3.11"
+authors = [{name = "Ralph Lemke"}]
+dependencies = ["boto3"]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[project.entry-points."facetwork.domains"]
+county-atlas = "county_atlas:domain"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+county_atlas = ["layers.json", "ffl/*.ffl"]
