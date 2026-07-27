@@ -280,7 +280,10 @@ summary::before{{content:"";width:6px;height:6px;border-right:1.6px solid var(--
 .src{{font:500 10px/1 ui-monospace,monospace;color:var(--ink2);opacity:.8;max-width:96px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
 .b{{font:600 9px/1.5 ui-monospace,monospace;letter-spacing:.05em;padding:1px 4px;border-radius:4px;background:var(--badge);color:var(--ink2)}}.b-priv{{color:var(--accent2)}}
 .mapwrap{{padding:16px}}.plate{{background:var(--plate);border:1px solid var(--line);border-radius:4px;box-shadow:var(--shadow);position:relative;overflow:hidden}}
-svg.map{{display:block;width:100%;height:auto}}.neat{{fill:none;stroke:var(--neat);stroke-width:1.2}}
+svg.map{{display:block;width:100%;height:auto;cursor:grab;touch-action:none}}svg.map:active{{cursor:grabbing}}.neat{{fill:none;stroke:var(--neat);stroke-width:1.2}}
+.zoomctl{{position:absolute;right:14px;bottom:14px;display:flex;flex-direction:column;gap:4px;z-index:2}}
+.zoomctl button{{width:30px;height:30px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:6px;font:600 17px/1 ui-monospace,monospace;cursor:pointer;box-shadow:var(--shadow);display:flex;align-items:center;justify-content:center}}
+.zoomctl button:hover{{border-color:var(--accent);color:var(--accent)}}
 .scalebar{{position:absolute;left:16px;bottom:14px;font:600 10px/1.4 ui-monospace,monospace;color:var(--ink)}}.scalebar .bar{{height:5px;border:1.4px solid var(--ink);border-top:none;margin-top:2px}}
 .narrow{{position:absolute;right:16px;top:12px;font:700 13px/1 ui-monospace,monospace;color:var(--ink2);text-align:center}}.narrow::before{{content:"\25B2";display:block;font-size:11px;color:var(--accent)}}
 .stat{{padding:10px 0;border-top:1px solid var(--line)}}.stat:first-child{{border-top:none}}
@@ -300,10 +303,11 @@ svg.map{{display:block;width:100%;height:auto}}.neat{{fill:none;stroke:var(--nea
 <div class="note">Checked layers draw on the map. Muted rows need a tier-2/3 source
 (Census, EPA, USGS, CDC…) named at right — catalogued, not fetched here. <b>AGG</b> = shown
 only as an area rate, never points.</div></aside>
-<main class="mapwrap"><div class="plate"><svg class="map" viewBox="0 0 {svgw} {svgh}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="{county} County map">
+<main class="mapwrap"><div class="plate"><svg id="map" class="map" viewBox="0 0 {svgw} {svgh}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="{county} County map">
 <rect x="{plate_x}" y="{plate_y}" width="{plate_w}" height="{plate_h}" class="neat"/><g id="layers">{svg_body}</g></svg>
 <div class="legendbox" id="lgd" style="display:none"></div>
-<div class="narrow">N</div><div class="scalebar">{bar_km} km<div class="bar" style="width:{bar_px}px"></div></div></div></main>
+<div class="narrow">N</div><div class="scalebar">{bar_km} km<div class="bar" style="width:{bar_px}px"></div></div>
+<div class="zoomctl"><button id="zin" title="Zoom in" aria-label="Zoom in">+</button><button id="zout" title="Zoom out" aria-label="Zoom out">&minus;</button><button id="zreset" title="Reset view" aria-label="Reset view" style="font-size:13px">&#8635;</button></div></div></main>
 <aside class="pane right"><div class="ptitle">County indicators</div>{indicators}
 <div class="note">OSM-derived measures from this county's extract. Per-capita and access
 indicators need the Census population denominator — a tier-2 join, catalogued but not run here.</div></aside>
@@ -317,5 +321,21 @@ var CHORO={choro_js};
 function afmt(v,f){{if(v==null)return '—';if(f=='pct')return Math.round(v)+'%';if(f=='dollar')return v>=1000?'$'+Math.round(v/1000)+'k':'$'+Math.round(v);if(f=='count'||f=='density')return Math.round(v).toLocaleString();if(f=='km')return v.toFixed(1)+' km';if(f=='years')return v.toFixed(1);if(f=='index')return v.toFixed(2);return ''+Math.round(v);}}
 function showLegend(lid){{var c=CHORO[lid],lg=document.getElementById('lgd');if(!c){{lg.style.display='none';return;}}var b=c.breaks,cols=c.colors,h='<div class="lt">'+c.label+'</div>';for(var i=0;i<cols.length;i++){{var lo=i==0?null:b[i-1],hi=i<b.length?b[i]:null;var lab=lo==null?'< '+afmt(hi,c.fmt):hi==null?'≥ '+afmt(lo,c.fmt):afmt(lo,c.fmt)+'–'+afmt(hi,c.fmt);h+='<div><i style="background:'+cols[i]+'"></i>'+lab+'</div>';}}h+='<div><i style="background:'+c.nodata+'"></i>no data</div>';lg.innerHTML=h;lg.style.display='';}}
 document.querySelectorAll('input[data-choro]').forEach(function(cb){{cb.addEventListener('change',function(){{var lid=cb.dataset.choro;if(cb.checked){{document.querySelectorAll('input[data-choro]').forEach(function(o){{if(o!==cb){{o.checked=false;var g2=document.querySelector('g[data-layer="'+o.dataset.choro+'"]');if(g2)g2.style.display='none';}}}});var g=document.querySelector('g[data-layer="'+lid+'"]');if(g)g.style.display='';showLegend(lid);}}else{{var g=document.querySelector('g[data-layer="'+lid+'"]');if(g)g.style.display='none';document.getElementById('lgd').style.display='none';}}}});}});
+(function(){{
+  var svg=document.getElementById('map');if(!svg)return;
+  var iv=svg.getAttribute('viewBox').split(' ').map(Number);
+  var VBW=iv[2],VBH=iv[3],vb={{x:iv[0],y:iv[1],w:iv[2],h:iv[3]}};
+  var sb=document.querySelector('.scalebar .bar'),sb0={bar_px};
+  function apply(){{svg.setAttribute('viewBox',vb.x+' '+vb.y+' '+vb.w+' '+vb.h);if(sb)sb.style.width=(sb0*(VBW/vb.w))+'px';}}
+  function zoomAt(f,cx,cy){{var nw=Math.min(Math.max(vb.w*f,VBW*0.04),VBW*3);var nh=nw*(VBH/VBW);vb.x=cx-(cx-vb.x)*(nw/vb.w);vb.y=cy-(cy-vb.y)*(nh/vb.h);vb.w=nw;vb.h=nh;apply();}}
+  svg.addEventListener('wheel',function(e){{e.preventDefault();var r=svg.getBoundingClientRect();zoomAt(e.deltaY>0?1.15:0.87,vb.x+(e.clientX-r.left)/r.width*vb.w,vb.y+(e.clientY-r.top)/r.height*vb.h);}},{{passive:false}});
+  var st=null;
+  svg.addEventListener('pointerdown',function(e){{st={{cx:e.clientX,cy:e.clientY,vx:vb.x,vy:vb.y}};try{{svg.setPointerCapture(e.pointerId);}}catch(_){{}}}});
+  svg.addEventListener('pointermove',function(e){{if(!st)return;var r=svg.getBoundingClientRect();vb.x=st.vx-(e.clientX-st.cx)*(vb.w/r.width);vb.y=st.vy-(e.clientY-st.cy)*(vb.h/r.height);apply();}});
+  svg.addEventListener('pointerup',function(){{st=null;}});svg.addEventListener('pointercancel',function(){{st=null;}});
+  var b;if(b=document.getElementById('zin'))b.onclick=function(){{zoomAt(0.8,vb.x+vb.w/2,vb.y+vb.h/2);}};
+  if(b=document.getElementById('zout'))b.onclick=function(){{zoomAt(1.25,vb.x+vb.w/2,vb.y+vb.h/2);}};
+  if(b=document.getElementById('zreset'))b.onclick=function(){{vb={{x:iv[0],y:iv[1],w:iv[2],h:iv[3]}};apply();}};
+}})();
 </script>
 </div>"""
