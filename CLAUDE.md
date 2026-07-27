@@ -47,11 +47,23 @@ src/county_atlas/
 
 ## Tiers
 
-`tier` gates build cost: **1** = OSM-derived (free — the PBF exists); **2** = census/
-health/EPA choropleths (reuse existing domains); **3** = expensive calc (isochrones) /
+`tier` gates build cost: **1** = OSM-derived (free — the PBF exists); **2** = census
+choropleths (WIRED — see below) + health/EPA; **3** = expensive calc (isochrones) /
 raster. `BuildCountyAtlas(tier=N)` materializes layers with `tier <= N`. The offline CLI
-and current handler render tier-1 live; tiers 2–3 are catalogued and light up when their
-source join is wired.
+renders tier-1; the handler renders tier-1 + tier-2 census.
+
+## Tier-2 census join (`census.py`)
+
+Every catalog census layer with a `metric` field (→ a `census_us.tools._lib.metrics`
+key) becomes a **census-tract choropleth** for the county. `census.py` **reuses that
+metric registry + `compute_metric`** (do not reimplement the ACS math), fetches keyless
+TIGER tract geometry + ACS values (Census API — needs `CENSUS_API_KEY`, present in the
+runner env), joins by GEOID, quantile-classifies into 5 breaks, and returns per-tract
+`{value, cls}` + a legend. The renderer draws these UNDER the OSM overlays; the UI makes
+them **mutually exclusive** (one thematic layer at a time) with a live legend. On any
+failure (no key, no census-us, network) `build_census_choropleths` returns `{}` and the
+layer stays "not available" — never faked. `aggregate` privacy is honored: tract areas,
+never points.
 
 ## Tests
 
@@ -62,6 +74,8 @@ assertion in the same change.
 
 ## Not yet done
 
-- Tier-2 census/health join (the choropleth + per-capita indicators light up).
+- Tier-2 **health/EPA/USGS/FEMA** joins (census is done; extend `census.py`'s pattern —
+  a `<source>.py` fetcher + a `metric`/`source` field per catalog layer).
+- Tier-3 calculated indicators (isochrone coverage via `osm.Network`, per-capita).
 - Master-index state/US pages beyond the flat grouped list.
 - Fleet registration (`domains.json` + image bake) — this is a local domain today.

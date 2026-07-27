@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Facetwork domain: per-county information maps + a US->state->county master index"
 requires-python = ">=3.11"
 authors = [{name = "Ralph Lemke"}]
-dependencies = ["boto3"]
+dependencies = ["boto3", "pyshp"]
 
 [project.optional-dependencies]
 dev = ["pytest"]

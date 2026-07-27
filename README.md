@@ -17,6 +17,7 @@ Full architecture: [`docs/architecture/county-atlas.md`](https://github.com/rlem
 | **Fan-out** — `ListCounties` → `foreach` → `BuildCountyAtlas`, one county per task | [`ffl/atlas.ffl`](src/county_atlas/ffl/atlas.ffl) |
 | **Renderer** — GeoJSON layers → self-contained interactive HTML (SVG map + checkbox tree) | [`render.py`](src/county_atlas/tools/_county_atlas_tools/render.py) |
 | **Materializer** — osmium: county PBF → per-layer GeoJSON | [`materialize.py`](src/county_atlas/tools/_county_atlas_tools/materialize.py) |
+| **Tier-2 census join** — ACS → tract geometry → per-county choropleths (reuses `census-us` metric registry) | [`census.py`](src/county_atlas/tools/_county_atlas_tools/census.py) |
 | **Storage** — county PBF in / atlas out, backend-aware object store | [`storage.py`](src/county_atlas/tools/_county_atlas_tools/storage.py) |
 
 ## What's in the catalog
@@ -74,9 +75,12 @@ python src/county_atlas/tools/build-county-atlas.py coos.osm.pbf oregon coos out
 
 ## Requirements
 
-- **osmium-tool** on the runner (materialization).
+- **osmium-tool** on the runner (tier-1 materialization).
 - The `osm.planet` per-county extracts in the shared object store.
 - `boto3` + the standard `FW_S3_*` env for object-store access.
+- **Tier-2 census:** `CENSUS_API_KEY` (present in the fleet runner env) + `pyshp` +
+  the `census-us` domain installed (its ACS metric registry is reused). Run
+  `BuildCountyAtlas(tier=2)` to light up the Census ACS tract choropleths.
 
 ## License
 

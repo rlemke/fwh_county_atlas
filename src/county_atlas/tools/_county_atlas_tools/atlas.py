@@ -44,12 +44,23 @@ def build_county_atlas(county_key: str, tier: int = 1, bucket: str = storage.BUC
         log(f"BuildCountyAtlas: {state}/{county} extract downloaded")
         layers = catalog.osm_layers(tier_max=tier)
         materialized, counts = materialize.materialize_osm(pbf, layers, skip=HEAVY_SKIP)
-        html = render.build_atlas_html(cat, materialized, counts, state, county)
-        live = sum(1 for v in counts.values() if v > 0)
+
+        # tier-2: census-tract choropleths (reuses census-us's ACS metric registry)
+        choropleths: dict = {}
+        if tier >= 2:
+            from . import census
+            census_layers = [l for l in cat["layers"] if l.get("metric")]
+            choropleths = census.build_census_choropleths(
+                state, county, census_layers, on_log=log)
+
+        html = render.build_atlas_html(cat, materialized, counts, state, county,
+                                       choropleths=choropleths)
+        live = sum(1 for v in counts.values() if v > 0) + len(choropleths)
         manifest = {
             "county_key": county_key, "state": state, "county": county, "tier": tier,
             "live_layers": live, "feature_count": sum(counts.values()),
             "layers": {lid: n for lid, n in counts.items() if n > 0},
+            "choropleths": {lid: len(ch["features"]) for lid, ch in choropleths.items()},
         }
         html_uri = storage.put_text(s3, storage.atlas_html_key(county_key), html,
                                     "text/html", bucket)
