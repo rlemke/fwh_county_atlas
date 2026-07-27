@@ -19,9 +19,13 @@ import zipfile
 YEAR = os.environ.get("FW_ATLAS_TIGER_YEAR", "2024")
 
 
-def _load(url: str):
+def _load(url: str, s3=None, bucket=None, cache_name: str | None = None):
     import shapefile  # pyshp
-    data = urllib.request.urlopen(url, timeout=180).read()
+    if s3 is not None and cache_name:
+        from . import storage
+        data = storage.cached_bytes(s3, cache_name, url, bucket=bucket or storage.BUCKET)
+    else:
+        data = urllib.request.urlopen(url, timeout=180).read()
     tmp = tempfile.mkdtemp()
     zipfile.ZipFile(io.BytesIO(data)).extractall(tmp)
     r = shapefile.Reader(glob.glob(os.path.join(tmp, "*.shp"))[0])
@@ -34,8 +38,12 @@ def _bbox_hit(shape, bbox) -> bool:
 
 
 def build_boundaries(state_fips: str, county_fips: str, bbox, layers: list[dict],
-                     on_log=None) -> dict:
-    """{layer_id: line-polygon FeatureCollection} for boundary_source block_groups/school_districts."""
+                     s3=None, bucket=None, on_log=None) -> dict:
+    """{layer_id: line-polygon FeatureCollection} for boundary_source block_groups/school_districts.
+
+    Per-state shapefiles are pulled from the shared cache when ``s3`` is given, so a
+    fan-out fetches each state's file once from census.gov.
+    """
     log = on_log or (lambda *_a, **_k: None)
     out: dict[str, dict] = {}
     for lyr in layers:
@@ -43,13 +51,15 @@ def build_boundaries(state_fips: str, county_fips: str, bbox, layers: list[dict]
         try:
             if src == "block_groups":
                 r, fi = _load(f"https://www2.census.gov/geo/tiger/TIGER{YEAR}/BG/"
-                              f"tl_{YEAR}_{state_fips}_bg.zip")
+                              f"tl_{YEAR}_{state_fips}_bg.zip", s3=s3, bucket=bucket,
+                              cache_name=f"tiger/{YEAR}_bg_{state_fips}.zip")
                 feats = [{"type": "Feature", "geometry": sh.__geo_interface__, "properties": {}}
                          for rec, sh in zip(r.records(), r.shapes())
                          if rec[fi["COUNTYFP"]] == county_fips]
             elif src == "school_districts":
                 r, _fi = _load(f"https://www2.census.gov/geo/tiger/TIGER{YEAR}/UNSD/"
-                               f"tl_{YEAR}_{state_fips}_unsd.zip")
+                               f"tl_{YEAR}_{state_fips}_unsd.zip", s3=s3, bucket=bucket,
+                               cache_name=f"tiger/{YEAR}_unsd_{state_fips}.zip")
                 feats = [{"type": "Feature", "geometry": sh.__geo_interface__, "properties": {}}
                          for sh in r.shapes() if _bbox_hit(sh, bbox)]
             else:

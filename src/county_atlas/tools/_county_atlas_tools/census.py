@@ -98,18 +98,27 @@ def county_fips(state_slug: str, county_slug: str) -> tuple[str, str]:
     return sf, cf
 
 
-def fetch_tracts(state_fips: str, county_fips: str) -> dict[str, dict]:
-    """Public alias — {tract_GEOID: geometry} for the county (keyless TIGER)."""
-    return _tiger_tracts(state_fips, county_fips)
+def fetch_tracts(state_fips: str, county_fips: str, s3=None, bucket=None) -> dict[str, dict]:
+    """Public alias — {tract_GEOID: geometry} for the county (keyless TIGER).
+
+    When ``s3`` is given, the per-state tract shapefile is pulled from (or seeded into)
+    the shared cache, so a fan-out downloads each state's file only once.
+    """
+    return _tiger_tracts(state_fips, county_fips, s3=s3, bucket=bucket)
 
 
-def _tiger_tracts(state_fips: str, county_fips: str) -> dict[str, dict]:
+def _tiger_tracts(state_fips: str, county_fips: str, s3=None, bucket=None) -> dict[str, dict]:
     """{tract_GEOID: geometry} for the county, from the keyless TIGER tract shapefile."""
     import shapefile  # pyshp
     url = (f"https://www2.census.gov/geo/tiger/TIGER{TIGER_YEAR}/TRACT/"
            f"tl_{TIGER_YEAR}_{state_fips}_tract.zip")
-    with urllib.request.urlopen(url, timeout=180) as r:
-        data = r.read()
+    if s3 is not None:
+        from . import storage
+        data = storage.cached_bytes(s3, f"tiger/{TIGER_YEAR}_tract_{state_fips}.zip",
+                                    url, bucket=bucket or storage.BUCKET)
+    else:
+        with urllib.request.urlopen(url, timeout=180) as r:
+            data = r.read()
     tmp = tempfile.mkdtemp()
     zipfile.ZipFile(io.BytesIO(data)).extractall(tmp)
     import glob

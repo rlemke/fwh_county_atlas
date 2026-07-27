@@ -45,6 +45,26 @@ def put_text(s3, key: str, text: str, content_type: str, bucket: str = BUCKET) -
     return f"s3://{bucket}/{key}"
 
 
+def cached_bytes(s3, name: str, url: str, bucket: str = BUCKET, timeout: int = 180) -> bytes:
+    """Return the bytes of ``url``, caching them once at ``county-atlas/_shared/<name>``.
+
+    Used for per-state TIGER shapefiles (and other national/state artifacts) so a
+    3,143-county fan-out downloads each state's file ONCE from census.gov instead of
+    per county — the shared-cache pattern that keeps us a good citizen (and un-banned).
+    """
+    import urllib.request
+    key = f"{OUTPUT_PREFIX}/_shared/{name}"
+    try:
+        return s3.get_object(Bucket=bucket, Key=key)["Body"].read()
+    except Exception:
+        data = urllib.request.urlopen(url, timeout=timeout).read()
+        try:
+            s3.put_object(Bucket=bucket, Key=key, Body=data)
+        except Exception:
+            pass
+        return data
+
+
 def atlas_html_key(county_key: str) -> str:
     return f"{OUTPUT_PREFIX}/{county_key.split('north-america/us/')[-1].strip('/')}/index.html"
 

@@ -54,7 +54,7 @@ def build_county_atlas(county_key: str, tier: int = 1, bucket: str = storage.BUC
             sf = cf = cname = tracts = None
             try:
                 sf, cf, cname = census.resolve(state, county)
-                tracts = census.fetch_tracts(sf, cf)
+                tracts = census.fetch_tracts(sf, cf, s3=s3, bucket=bucket)
             except Exception as exc:
                 log(f"tier-2 geo resolve skipped: {exc}")
             if tracts is not None:
@@ -111,7 +111,8 @@ def build_county_atlas(county_key: str, tier: int = 1, bucket: str = storage.BUC
                     for lid, fc in tiger.build_boundaries(
                             sf, cf, bbox,
                             [l for l in cat_layers if l.get("boundary_source")
-                             in ("block_groups", "school_districts")], on_log=log).items():
+                             in ("block_groups", "school_districts")],
+                            s3=s3, bucket=bucket, on_log=log).items():
                         materialized[lid] = fc
                         counts[lid] = len(fc["features"])
 
