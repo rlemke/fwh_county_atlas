@@ -67,6 +67,17 @@ Tier-2 layers carry a small field naming their source; the matching module build
 - **`epa.py`** — an `epa_source` field (`tri`). EPA TRI facilities fetched per-county from
   Envirofacts (`STATE_ABBR` + `COUNTY_NAME`, coords in `pref_latitude/longitude`) →
   point FeatureCollection injected into `materialized`, rendered like an OSM point layer.
+- **`usgs.py`** — a `usgs_source` field (`earthquakes` | `aquifers`). USGS FDSN event API
+  (bbox query → points) + the Principal-Aquifers ArcGIS FeatureServer (bbox envelope →
+  polygons). Both bbox-scoped from the OSM county boundary → `materialized`.
+- **`fema.py`** — a `fema_source` field (`nri`). FEMA National Risk Index **Census-Tracts**
+  ArcGIS FeatureServer, queried by `STCOFIPS`; returns per-tract `RISK_SCORE` **with tract
+  geometry**, so the choropleth is built from NRI's own geometry (no census join).
+- **`noaa.py`** — a `noaa_source` field (`stations`). GHCN-Daily station inventory
+  (~10 MB) fetched ONCE and cached in the object store at `county-atlas/_shared/`, then
+  bbox-filtered per county → station points. Parses via `noaa_weather`'s `parse_stations`
+  when installed, else a built-in fixed-width parser. **This is the shared-national-cache
+  pattern** EPA Superfund/Brownfields still need.
 
 Shared rules: choropleths render UNDER the OSM overlays; the UI makes them **mutually
 exclusive** (one thematic layer at a time) with a live legend. `aggregate` privacy →
@@ -88,8 +99,11 @@ assertion in the same change.
 
 ## Not yet done
 
-- EPA **Superfund/Brownfields** (need the national-cache + bbox-filter approach above),
-  and tier-2 **USGS/FEMA/NOAA** joins (extend the `<source>.py` + catalog-field pattern).
+- EPA **Superfund/Brownfields** — apply `noaa.py`'s shared-national-cache pattern (EMEF
+  ArcGIS has no county filter): fetch the national set once → cache under `_shared/` →
+  bbox-filter per county.
 - Tier-3 calculated indicators (isochrone coverage via `osm.Network`, per-capita).
 - Master-index state/US pages beyond the flat grouped list.
 - Fleet registration (`domains.json` + image bake) — this is a local domain today.
+- Perf: NOAA parses ~125k stations per county build (~1–2 s). If it bites at fan-out
+  scale, pre-parse the inventory into a compact cached JSON once.

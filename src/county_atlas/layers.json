@@ -601,7 +601,13 @@
       "privacy": "public",
       "coverage": "national",
       "tier": 2,
-      "license": "USGS (public domain)"
+      "license": "USGS (public domain)",
+      "usgs_source": "aquifers",
+      "style": {
+        "fill": "#4dd0e1",
+        "opacity": 0.35,
+        "line": "#00838f"
+      }
     },
     {
       "id": "fema.floodplains",
@@ -1560,7 +1566,8 @@
       },
       "coverage": "national",
       "tier": 2,
-      "license": "FEMA NRI (public domain)"
+      "license": "FEMA NRI (public domain)",
+      "fema_source": "nri"
     },
     {
       "id": "nlcd.land_cover",
@@ -1597,6 +1604,26 @@
       "license": "NOAA (public domain)"
     },
     {
+      "id": "noaa.stations",
+      "label": "Weather stations (GHCN)",
+      "category": "Environment and climate",
+      "geometry": "point",
+      "source": {
+        "kind": "http",
+        "url": "https://www.ncei.noaa.gov/pub/data/ghcn/daily/ghcnd-stations.txt",
+        "format": "txt"
+      },
+      "noaa_source": "stations",
+      "privacy": "public",
+      "coverage": "national",
+      "tier": 2,
+      "style": {
+        "marker": "circle",
+        "color": "#00897b"
+      },
+      "license": "NOAA GHCN (public domain)"
+    },
+    {
       "id": "usgs.earthquakes",
       "label": "Earthquakes (M\u22654.5)",
       "category": "Environment and climate",
@@ -1609,7 +1636,12 @@
       "privacy": "public",
       "coverage": "national",
       "tier": 2,
-      "license": "USGS (public domain)"
+      "license": "USGS (public domain)",
+      "usgs_source": "earthquakes",
+      "style": {
+        "marker": "circle",
+        "color": "#d84315"
+      }
     },
     {
       "id": "osm.landuse",

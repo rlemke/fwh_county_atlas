@@ -137,3 +137,30 @@ def test_health_degrades_gracefully_without_key(monkeypatch):
     out = health.build_places_choropleths(
         "oregon", "coos", [{"id": "health.obesity", "places": "OBESITY"}])
     assert out == {}
+
+
+# --- tier-2 USGS / FEMA / NOAA ------------------------------------------------
+
+def test_usgs_fema_noaa_catalog_flags():
+    layers = catalog.load_catalog()["layers"]
+    assert any(l.get("usgs_source") == "earthquakes" for l in layers)
+    assert any(l.get("usgs_source") == "aquifers" for l in layers)
+    assert any(l.get("fema_source") == "nri" and l["geometry"] == "choropleth" for l in layers)
+    assert any(l.get("noaa_source") == "stations" and l["geometry"] == "point" for l in layers)
+
+
+def test_usgs_and_fema_empty_without_matching_layers():
+    from county_atlas.tools._county_atlas_tools import fema, usgs
+    assert usgs.build_usgs((-124.6, 42.8, -123.8, 43.7), [{"id": "x"}]) == {}
+    assert fema.build_nri("41", "011", [{"id": "x"}]) == {}
+
+
+def test_noaa_station_parse_and_no_layer_shortcircuit():
+    from county_atlas.tools._county_atlas_tools import noaa
+    line = f"{'USC00350197':<11} {43.5:>8.4f} {-123.5:>9.4f} {100.0:>6.1f}    TEST STATION"
+    st = noaa._parse_min(line)
+    assert len(st) == 1
+    assert abs(st[0]["lat"] - 43.5) < 1e-6 and abs(st[0]["lon"] + 123.5) < 1e-6
+    assert st[0]["name"].startswith("TEST STATION")
+    # no noaa_source layers -> returns {} before touching the object store (s3=None ok)
+    assert noaa.build_station_points((-125, 42, -123, 44), [{"id": "x"}], None, "b") == {}

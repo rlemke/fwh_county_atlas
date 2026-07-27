@@ -72,6 +72,28 @@ def build_county_atlas(county_key: str, tier: int = 1, bucket: str = storage.BUC
                     materialized[lid] = fc
                     counts[lid] = len(fc["features"])
 
+            # bbox-scoped USGS (earthquakes/aquifers) + NOAA (GHCN stations)
+            from . import noaa, render as _render, usgs
+            bbox = _render._bbox(
+                materialized.get("osm.county_boundary", {}).get("features", []))
+            if bbox:
+                for lid, fc in usgs.build_usgs(
+                        bbox, [l for l in cat_layers if l.get("usgs_source")],
+                        on_log=log).items():
+                    materialized[lid] = fc
+                    counts[lid] = len(fc["features"])
+                for lid, fc in noaa.build_station_points(
+                        bbox, [l for l in cat_layers if l.get("noaa_source")],
+                        s3, bucket, on_log=log).items():
+                    materialized[lid] = fc
+                    counts[lid] = len(fc["features"])
+
+            # FEMA National Risk Index tract choropleth (needs county FIPS)
+            if sf and cf:
+                from . import fema
+                choropleths.update(fema.build_nri(
+                    sf, cf, [l for l in cat_layers if l.get("fema_source")], on_log=log))
+
         html = render.build_atlas_html(cat, materialized, counts, state, county,
                                        choropleths=choropleths)
         live = sum(1 for v in counts.values() if v > 0) + len(choropleths)
