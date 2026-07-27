@@ -15,6 +15,22 @@ DEFAULT_ON = {"osm.county_boundary", "osm.water", "osm.rivers", "osm.roads_highw
               "osm.roads_interstate", "osm.parks", "osm.places", "osm.coastline"}
 
 
+def _esc(s) -> str:
+    """Attribute-safe escape for point names (may contain quotes/&/<)."""
+    return (str(s).replace("&", "&amp;").replace('"', "&quot;")
+            .replace("<", "&lt;").replace(">", "&gt;"))
+
+
+def _perp2(a, b, c) -> float:
+    """Squared perpendicular distance of point b from the segment a→c (pixel space)."""
+    dx, dy = c[0] - a[0], c[1] - a[1]
+    if dx == 0 and dy == 0:
+        return (b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2
+    t = ((b[0] - a[0]) * dx + (b[1] - a[1]) * dy) / (dx * dx + dy * dy)
+    fx, fy = a[0] + t * dx, a[1] + t * dy
+    return (b[0] - fx) ** 2 + (b[1] - fy) ** 2
+
+
 def iter_geoms(geom):
     t = geom.get("type"); c = geom.get("coordinates")
     if t == "Point":
@@ -85,13 +101,22 @@ def build_atlas_html(catalog: dict, materialized: dict, counts: dict,
     def px(lon): return int((lon - minlon) * cos * scale + pad + 0.5)
     def py(lat): return int((maxlat - lat) * scale + pad + 0.5)
 
-    def snap(coords):
+    def snap(coords, tol2=0.8):
         out = []
         for p in coords:
             xy = (px(p[0]), py(p[1]))
             if not out or out[-1] != xy:
                 out.append(xy)
-        return out
+        if len(out) <= 2:
+            return out
+        # single-pass collinearity drop: remove vertices within ~0.9px of the
+        # segment between their kept neighbours (roads carry many redundant points).
+        simp = [out[0]]
+        for i in range(1, len(out) - 1):
+            if _perp2(simp[-1], out[i], out[i + 1]) >= tol2:
+                simp.append(out[i])
+        simp.append(out[-1])
+        return simp
 
     def ring_path(ring):
         pts = snap(ring)
@@ -132,16 +157,30 @@ def build_atlas_html(catalog: dict, materialized: dict, counts: dict,
                             parts.append(f'<path d="{d}" fill="none" stroke="{st.get("line","#6b7d72")}" '
                                          f'stroke-width="{st.get("width",0.8)}"{dash}/>')
                     else:
+                        # Only draw points for layers that ARE points. Polygon/line
+                        # layers (boundaries, roads, water) carry stray OSM nodes
+                        # (admin-centre/label points) that would otherwise show as
+                        # spurious red dots and bloat the file.
+                        if lyr.get("geometry") != "point":
+                            continue
+                        nm = (f.get("properties") or {}).get("name")
+                        na = f' data-nm="{_esc(nm)}"' if nm else ""
                         parts.append(f'<circle cx="{px(coords[0])}" cy="{py(coords[1])}" r="2.4" '
-                                     f'fill="{st.get("color","#c0392b")}" stroke="#fff" stroke-width="0.5"/>')
+                                     f'fill="{st.get("color","#c0392b")}" stroke="#fff" '
+                                     f'stroke-width="0.5" class="pt"{na}/>')
             if parts:
                 vis = "" if lid in DEFAULT_ON else ' style="display:none"'
                 groups.append((order[gc], f'<g data-layer="{lid}"{vis}>{"".join(parts)}</g>'))
     svg_osm = "".join(g for _o, g in sorted(groups, key=lambda x: x[0]))
 
-    # tier-2 choropleth groups (drawn UNDER the OSM overlays) + legend metadata
+    # tier-2 choropleth groups (drawn UNDER the OSM overlays) + legend metadata.
+    # Every choropleth over the same tracts reuses the SAME polygon shapes, so define
+    # each shape ONCE in <defs> and reference it per layer with <use fill=...>. This
+    # collapses ~20 choropleths x ~N tracts of duplicated path data down to N shapes.
     import json as _json
     choro_svg, choro_legend = [], {}
+    shape_id: dict[str, str] = {}   # path-d -> def id
+    defs_parts: list[str] = []
     for lid, ch in choropleths.items():
         parts = []
         for f in ch["features"]:
@@ -151,16 +190,23 @@ def build_atlas_html(catalog: dict, materialized: dict, counts: dict,
                 d = "".join(ring_path(r) for r in coords if len(r) > 2)
                 if not d:
                     continue
+                sid = shape_id.get(d)
+                if sid is None:
+                    sid = f"c{len(shape_id)}"
+                    shape_id[d] = sid
+                    defs_parts.append(f'<path id="{sid}" d="{d}"/>')
                 cls = f.get("cls", -1)
                 fill = ch["legend"]["nodata"] if cls < 0 else ch["legend"]["colors"][cls]
-                parts.append(f'<path d="{d}" fill="{fill}" fill-opacity="0.85" '
+                parts.append(f'<use href="#{sid}" fill="{fill}" fill-opacity="0.85" '
                              f'stroke="#fff" stroke-width="0.3"/>')
         if parts:
             choro_svg.append(f'<g data-layer="{lid}" data-choro="1" style="display:none">'
                              f'{"".join(parts)}</g>')
             choro_legend[lid] = ch["legend"]
-    svg_body = "".join(choro_svg) + svg_osm
+    defs_svg = f'<defs>{"".join(defs_parts)}</defs>' if defs_parts else ""
+    svg_body = defs_svg + "".join(choro_svg) + svg_osm
     choro_js = _json.dumps(choro_legend)
+    labels_js = _json.dumps({l["id"]: l["label"] for l in layers})
 
     def line_total(*ids):
         return sum(_line_km(c) for i in ids for f in materialized.get(i, {}).get("features", [])
@@ -252,7 +298,7 @@ def build_atlas_html(catalog: dict, materialized: dict, counts: dict,
                            for k, v, s in indicators),
         n_live=n_live, n_total=len(layers), bar_px=bar_px, bar_km=bar_km,
         plate_x=pad, plate_y=pad, plate_w=round(W, 1), plate_h=round(H, 1),
-        choro_js=choro_js, n_choro=len(choropleths))
+        choro_js=choro_js, n_choro=len(choropleths), labels_js=labels_js)
 
 
 _TEMPLATE = r"""<div class="app"><style>
@@ -294,6 +340,10 @@ svg.map{{display:block;width:100%;height:auto;cursor:grab;touch-action:none}}svg
 .legendbox{{position:absolute;left:16px;top:14px;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:9px 11px;font:500 11px/1.55 ui-monospace,monospace;box-shadow:var(--shadow);max-width:200px}}
 .legendbox .lt{{font-weight:700;color:var(--ink);margin-bottom:5px;font-size:11px;white-space:normal}}
 .legendbox>div{{display:flex;align-items:center;gap:6px;color:var(--ink2);font-variant-numeric:tabular-nums}}.legendbox i{{width:12px;height:12px;border-radius:2px;flex:0 0 auto}}
+circle.pt{{cursor:pointer}}
+.popup{{position:absolute;background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:8px 11px 9px;font-size:12px;box-shadow:var(--shadow);max-width:220px;z-index:3;pointer-events:none}}
+.popup .pk{{font:600 9px/1 ui-monospace,monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:3px}}
+.popup .pn{{font-weight:600;color:var(--ink);line-height:1.35;word-break:break-word}}
 </style>
 <div class="hdr"><div><div class="crumb">United States <b>&rsaquo;</b> {state} <b>&rsaquo;</b> {county} County</div>
 <div class="title">{county} County<span>, {state}</span></div></div>
@@ -306,6 +356,7 @@ only as an area rate, never points.</div></aside>
 <main class="mapwrap"><div class="plate"><svg id="map" class="map" viewBox="0 0 {svgw} {svgh}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="{county} County map">
 <rect x="{plate_x}" y="{plate_y}" width="{plate_w}" height="{plate_h}" class="neat"/><g id="layers">{svg_body}</g></svg>
 <div class="legendbox" id="lgd" style="display:none"></div>
+<div class="popup" id="pop" style="display:none"></div>
 <div class="narrow">N</div><div class="scalebar">{bar_km} km<div class="bar" style="width:{bar_px}px"></div></div>
 <div class="zoomctl"><button id="zin" title="Zoom in" aria-label="Zoom in">+</button><button id="zout" title="Zoom out" aria-label="Zoom out">&minus;</button><button id="zreset" title="Reset view" aria-label="Reset view" style="font-size:13px">&#8635;</button></div></div></main>
 <aside class="pane right"><div class="ptitle">County indicators</div>{indicators}
@@ -336,6 +387,19 @@ document.querySelectorAll('input[data-choro]').forEach(function(cb){{cb.addEvent
   var b;if(b=document.getElementById('zin'))b.onclick=function(){{zoomAt(0.8,vb.x+vb.w/2,vb.y+vb.h/2);}};
   if(b=document.getElementById('zout'))b.onclick=function(){{zoomAt(1.25,vb.x+vb.w/2,vb.y+vb.h/2);}};
   if(b=document.getElementById('zreset'))b.onclick=function(){{vb={{x:iv[0],y:iv[1],w:iv[2],h:iv[3]}};apply();}};
+  // click a point -> info popup (layer + name); click elsewhere -> hide
+  var pop=document.getElementById('pop'),plate=document.querySelector('.plate'),LBL={labels_js};
+  if(pop&&plate)svg.addEventListener('click',function(e){{
+    var t=e.target;
+    if(t.tagName==='circle'&&t.getAttribute('data-nm')){{
+      var lid=t.parentNode&&t.parentNode.getAttribute('data-layer'),pr=plate.getBoundingClientRect();
+      pop.innerHTML='<div class="pk"></div><div class="pn"></div>';
+      pop.querySelector('.pk').textContent=LBL[lid]||'Point';
+      pop.querySelector('.pn').textContent=t.getAttribute('data-nm');
+      pop.style.left=Math.max(6,Math.min(e.clientX-pr.left+12,pr.width-232))+'px';
+      pop.style.top=(e.clientY-pr.top+12)+'px';pop.style.display='';
+    }}else{{pop.style.display='none';}}
+  }});
 }})();
 </script>
 </div>"""
