@@ -137,9 +137,9 @@ def test_epa_superfund_brownfields_catalog_and_clip():
     assert any(l.get("epa_source") == "brownfields" for l in layers)
     # _clip_points: keep in-bbox points, drop out-of-bbox, normalize name from EMEF keys
     national = {"features": [
-        {"geometry": {"type": "Point", "coordinates": [-123.5, 43.4]},
+        {"geometry": {"type": "Point", "coordinates": [-124.1, 43.4]},  # inside the bbox
          "properties": {"primary_name": "ACME SITE"}},
-        {"geometry": {"type": "Point", "coordinates": [-100.0, 40.0]},
+        {"geometry": {"type": "Point", "coordinates": [-100.0, 40.0]},  # far outside
          "properties": {"primary_name": "FAR SITE"}},
     ]}
     clipped = epa._clip_points(national, (-124.6, 42.8, -123.8, 43.7))
