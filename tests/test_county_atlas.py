@@ -147,6 +147,48 @@ def test_epa_superfund_brownfields_catalog_and_clip():
     assert epa._name({"primary_name": "X"}) == "X" and epa._name({"other": "Y"}) is None
 
 
+# --- tier-3 calculated indicators ---------------------------------------------
+
+def test_calc_haversine_and_centroid():
+    from county_atlas.tools._county_atlas_tools import calc
+    assert calc._haversine((-124, 43), (-124, 43)) < 1e-9
+    assert calc._centroid({"type": "Point", "coordinates": [-124.0, 43.0]}) == (-124.0, 43.0)
+
+
+def test_calc_ratio_nearest_distance_and_per_capita():
+    from county_atlas.tools._county_atlas_tools import calc
+    t1 = {"type": "Polygon", "coordinates": [[[-124.4, 43.1], [-124.1, 43.1], [-124.1, 43.4], [-124.4, 43.1]]]}
+    t2 = {"type": "Polygon", "coordinates": [[[-124.0, 43.5], [-123.7, 43.5], [-123.7, 43.8], [-124.0, 43.5]]]}
+    choro = {
+        "census.rent": {"features": [{"geometry": t1, "value": 1000}, {"geometry": t2, "value": 1200}]},
+        "census.income": {"features": [{"geometry": t1, "value": 48000}, {"geometry": t2, "value": 60000}]},
+        "census.population": {"features": [{"geometry": t1, "value": 2000}, {"geometry": t2, "value": 3000}]},
+    }
+    materialized = {"osm.hospitals": {"features": [
+        {"geometry": {"type": "Point", "coordinates": [-124.25, 43.25]}}]}}
+    calc_layers = [
+        {"id": "calc.rent_to_income", "label": "Rent % income",
+         "calc": {"op": "ratio", "numerator": "census.rent", "denominator": "census.income", "annualize": 12}},
+        {"id": "calc.hospital_access", "label": "Nearest hospital",
+         "calc": {"op": "nearest_distance", "base": "osm.hospitals"}},
+    ]
+    out, ind = calc.build_calc(choro, materialized, calc_layers, county_pop=5000)
+    # ratio: 1000*12/48000*100 = 25% (tract 1)
+    assert abs(out["calc.rent_to_income"]["features"][0]["value"] - 25.0) < 1e-6
+    # nearest-distance -> km values with a km legend
+    assert out["calc.hospital_access"]["features"][0]["value"] is not None
+    assert out["calc.hospital_access"]["legend"]["fmt"] == "km"
+    # per-capita: 1 hospital / 5000 pop * 10000 = 2.0
+    hosp = [v for label, v, _ in ind if label == "Hospitals per 10k"]
+    assert hosp and hosp[0] == "2.0"
+
+
+def test_calc_catalog_layers_have_ops():
+    calcs = [l for l in catalog.load_catalog()["layers"] if l.get("calc")]
+    assert len(calcs) >= 3
+    assert all(l["calc"]["op"] in {"ratio", "nearest_distance", "per_capita"} for l in calcs)
+
+
 def test_health_degrades_gracefully_without_key(monkeypatch):
     from county_atlas.tools._county_atlas_tools import health
     monkeypatch.delenv("CENSUS_API_KEY", raising=False)

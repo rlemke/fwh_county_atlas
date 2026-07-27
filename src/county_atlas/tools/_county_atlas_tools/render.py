@@ -64,7 +64,8 @@ def _bbox(feats):
 
 
 def build_atlas_html(catalog: dict, materialized: dict, counts: dict,
-                     state: str, county: str, choropleths: dict | None = None) -> str:
+                     state: str, county: str, choropleths: dict | None = None,
+                     extra_indicators: list | None = None) -> str:
     layers = catalog["layers"]
     categories = catalog["categories"]
     choropleths = choropleths or {}
@@ -184,6 +185,8 @@ def build_atlas_html(catalog: dict, materialized: dict, counts: dict,
         ("Campgrounds", f"{counts.get('osm.campgrounds',0):,}", "OSM tourism=camp_site"),
         ("Trail network", f"{line_total('osm.trails'):,.0f} km", "OSM highway=path"),
     ]
+    if extra_indicators:  # tier-3 per-capita panel stats
+        indicators += list(extra_indicators)
 
     priv_badge = {"aggregate": "AGG", "generalized": "GEN", "suppressed": "SUP"}
     tree = []
@@ -311,7 +314,7 @@ Census / CDC / EPA / USGS / FEMA / NOAA (public domain).</div>
 <script>
 document.querySelectorAll('input[data-layer]').forEach(function(cb){{cb.addEventListener('change',function(){{var g=document.querySelector('g[data-layer="'+cb.dataset.layer+'"]');if(g)g.style.display=cb.checked?'':'none';}});}});
 var CHORO={choro_js};
-function afmt(v,f){{if(v==null)return '—';if(f=='pct')return Math.round(v)+'%';if(f=='dollar')return v>=1000?'$'+Math.round(v/1000)+'k':'$'+Math.round(v);if(f=='count'||f=='density')return Math.round(v).toLocaleString();if(f=='years')return v.toFixed(1);if(f=='index')return v.toFixed(2);return ''+Math.round(v);}}
+function afmt(v,f){{if(v==null)return '—';if(f=='pct')return Math.round(v)+'%';if(f=='dollar')return v>=1000?'$'+Math.round(v/1000)+'k':'$'+Math.round(v);if(f=='count'||f=='density')return Math.round(v).toLocaleString();if(f=='km')return v.toFixed(1)+' km';if(f=='years')return v.toFixed(1);if(f=='index')return v.toFixed(2);return ''+Math.round(v);}}
 function showLegend(lid){{var c=CHORO[lid],lg=document.getElementById('lgd');if(!c){{lg.style.display='none';return;}}var b=c.breaks,cols=c.colors,h='<div class="lt">'+c.label+'</div>';for(var i=0;i<cols.length;i++){{var lo=i==0?null:b[i-1],hi=i<b.length?b[i]:null;var lab=lo==null?'< '+afmt(hi,c.fmt):hi==null?'≥ '+afmt(lo,c.fmt):afmt(lo,c.fmt)+'–'+afmt(hi,c.fmt);h+='<div><i style="background:'+cols[i]+'"></i>'+lab+'</div>';}}h+='<div><i style="background:'+c.nodata+'"></i>no data</div>';lg.innerHTML=h;lg.style.display='';}}
 document.querySelectorAll('input[data-choro]').forEach(function(cb){{cb.addEventListener('change',function(){{var lid=cb.dataset.choro;if(cb.checked){{document.querySelectorAll('input[data-choro]').forEach(function(o){{if(o!==cb){{o.checked=false;var g2=document.querySelector('g[data-layer="'+o.dataset.choro+'"]');if(g2)g2.style.display='none';}}}});var g=document.querySelector('g[data-layer="'+lid+'"]');if(g)g.style.display='';showLegend(lid);}}else{{var g=document.querySelector('g[data-layer="'+lid+'"]');if(g)g.style.display='none';document.getElementById('lgd').style.display='none';}}}});}});
 </script>

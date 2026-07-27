@@ -95,8 +95,21 @@ def build_county_atlas(county_key: str, tier: int = 1, bucket: str = storage.BUC
                 choropleths.update(fema.build_nri(
                     sf, cf, [l for l in cat_layers if l.get("fema_source")], on_log=log))
 
+        # tier-3: calculated indicators (derived from tier-1 OSM + tier-2 census)
+        extra_indicators: list = []
+        if tier >= 3:
+            from . import calc
+            pop_ch = choropleths.get("census.population")
+            county_pop = (sum(f["value"] for f in pop_ch["features"] if f.get("value"))
+                          if pop_ch else None)
+            calc_choro, extra_indicators = calc.build_calc(
+                choropleths, materialized,
+                [l for l in cat["layers"] if l.get("calc")], county_pop, on_log=log)
+            choropleths.update(calc_choro)
+
         html = render.build_atlas_html(cat, materialized, counts, state, county,
-                                       choropleths=choropleths)
+                                       choropleths=choropleths,
+                                       extra_indicators=extra_indicators)
         live = sum(1 for v in counts.values() if v > 0) + len(choropleths)
         manifest = {
             "county_key": county_key, "state": state, "county": county, "tier": tier,

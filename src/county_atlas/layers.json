@@ -1716,18 +1716,15 @@
     },
     {
       "id": "calc.park_access",
-      "label": "Residents within a 10-min walk of a park",
+      "label": "Distance to nearest park",
       "category": "Calculated indicators",
       "geometry": "choropleth",
       "source": {
         "kind": "calc"
       },
       "calc": {
-        "op": "isochrone_coverage",
-        "base": "osm.parks",
-        "minutes": 10,
-        "mode": "walk",
-        "denom": "census.population"
+        "op": "nearest_distance",
+        "base": "osm.parks"
       },
       "privacy": "aggregate",
       "coverage": "national",
@@ -1736,57 +1733,15 @@
     },
     {
       "id": "calc.hospital_access",
-      "label": "Households within 30 min of a hospital",
+      "label": "Distance to nearest hospital",
       "category": "Calculated indicators",
       "geometry": "choropleth",
       "source": {
         "kind": "calc"
       },
       "calc": {
-        "op": "isochrone_coverage",
-        "base": "osm.hospitals",
-        "minutes": 30,
-        "mode": "drive",
-        "denom": "census.population"
-      },
-      "privacy": "aggregate",
-      "coverage": "national",
-      "tier": 3,
-      "license": "derived (ODbL + US Census)"
-    },
-    {
-      "id": "calc.grocery_access",
-      "label": "Grocery-store access",
-      "category": "Calculated indicators",
-      "geometry": "choropleth",
-      "source": {
-        "kind": "http",
-        "url": "https://www.ers.usda.gov/data-products/food-access-research-atlas/",
-        "format": "csv"
-      },
-      "privacy": "aggregate",
-      "aggregation": {
-        "unit": "tract",
-        "measure": "rate",
-        "denom": "population"
-      },
-      "coverage": "national",
-      "tier": 2,
-      "license": "USDA ERS (public domain)"
-    },
-    {
-      "id": "calc.beds_per_capita",
-      "label": "Doctors / hospital beds per 10,000",
-      "category": "Calculated indicators",
-      "geometry": "choropleth",
-      "source": {
-        "kind": "calc"
-      },
-      "calc": {
-        "op": "per_capita",
-        "base": "osm.hospitals",
-        "per": 10000,
-        "denom": "census.population"
+        "op": "nearest_distance",
+        "base": "osm.hospitals"
       },
       "privacy": "aggregate",
       "coverage": "national",
@@ -1811,25 +1766,6 @@
       "coverage": "national",
       "tier": 2,
       "license": "derived (US Census)"
-    },
-    {
-      "id": "calc.commute_avg",
-      "label": "Average commute time",
-      "category": "Calculated indicators",
-      "geometry": "choropleth",
-      "source": {
-        "kind": "domain",
-        "domain": "census-us",
-        "facet": "census.ACS.ExtractCommute"
-      },
-      "privacy": "aggregate",
-      "aggregation": {
-        "unit": "tract",
-        "measure": "value"
-      },
-      "coverage": "national",
-      "tier": 2,
-      "license": "US Census (public domain)"
     }
   ]
 }

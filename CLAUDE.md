@@ -94,6 +94,25 @@ the national set (`where=1=1`); county/bbox filters 400. Wiring them needs a nat
 fetch cached once + a client-side bbox filter (a shared `_shared/` cache), not a national
 download per county — left as a TODO; the catalog keeps them "not available".
 
+## Tier-3 calculated indicators (`calc.py`)
+
+Derived **purely from tier-1 OSM + tier-2 census** — no new data. A catalog layer with a
+`calc` op is built by `calc.build_calc`, which returns `(calc_choropleths, extra_indicators)`:
+
+- **`ratio`** — per-tract ratio of two census choropleths (e.g. `census.rent`×12 ÷
+  `census.income` → rent as % of income). Reuses the aligned tract features + geometry.
+- **`nearest_distance`** — per-tract straight-line km from the tract centroid to the
+  nearest base feature (OSM points, or polygon/line centroids). **Approximate on purpose:**
+  a true N-minute isochrone needs network routing (a future `osm.Network` tier), so the
+  layer is *labelled* as straight-line distance, not "10-min walk". Legend fmt `km`.
+- **`per_capita`** — county count of an OSM layer per N residents (ACS population). Too
+  sparse for a per-tract choropleth, so these are **indicator-panel stats**, driven by the
+  internal `calc.PER_CAPITA` list, appended to the right-panel via `build_atlas_html`'s
+  `extra_indicators`. County population = sum of the `census.population` tract values.
+
+Runs in `BuildCountyAtlas(tier=3)` (after the tier-2 block, since it consumes those
+choropleths). Same privacy/honesty rules — an op with missing inputs is skipped.
+
 ## Tests
 
 `tests/test_county_atlas.py` is offline (no osmium / no S3): catalog contract, the pure
@@ -103,7 +122,8 @@ assertion in the same change.
 
 ## Not yet done
 
-- Tier-3 calculated indicators (isochrone coverage via `osm.Network`, per-capita).
+- **True network isochrones** — the `nearest_distance` calc is straight-line; a real
+  N-minute walk/drive coverage needs `osm.Network` (fwh_osm) graph routing per tract.
 - Master-index state/US pages beyond the flat grouped list.
 - Fleet registration (`domains.json` + image bake) — this is a local domain today.
 - Perf: NOAA parses ~125k stations per county build (~1–2 s). If it bites at fan-out
