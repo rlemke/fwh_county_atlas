@@ -72,8 +72,12 @@ def _acs(get_cols: str, geo_for: str, geo_in: str = "") -> list[list[str]]:
         return json.load(r)
 
 
-def county_fips(state_slug: str, county_slug: str) -> tuple[str, str]:
-    """(state_fips, county_fips) — resolve the county's FIPS via an ACS NAME query."""
+def resolve(state_slug: str, county_slug: str) -> tuple[str, str, str]:
+    """(state_fips, county_fips, county_name) via an ACS NAME query.
+
+    Shared by the census / health / epa tier-2 joins so they agree on FIPS + the
+    canonical county name (e.g. ``"Coos"`` — used by EPA's county filter).
+    """
     sf = STATE_FIPS.get(state_slug)
     if not sf:
         raise CensusError(f"unknown state slug: {state_slug}")
@@ -81,12 +85,22 @@ def county_fips(state_slug: str, county_slug: str) -> tuple[str, str]:
     header, body = rows[0], rows[1:]
     ci = {h: i for i, h in enumerate(header)}
     for row in body:
-        # NAME e.g. "Coos County, Oregon" -> leading part slugged, strip "-county"
-        name = row[ci["NAME"]].split(",")[0]
-        cslug = re.sub(r"-(county|parish|borough|census-area|municipality)$", "", _slug(name))
-        if cslug == county_slug:
-            return sf, row[ci["county"]]
+        # NAME e.g. "Coos County, Oregon" -> leading part; strip the type word
+        raw = row[ci["NAME"]].split(",")[0]
+        bare = re.sub(r"\s+(County|Parish|Borough|Census Area|Municipality)$", "", raw)
+        if re.sub(r"-(county|parish|borough|census-area|municipality)$", "", _slug(raw)) == county_slug:
+            return sf, row[ci["county"]], bare
     raise CensusError(f"county {county_slug} not found in state {state_slug}")
+
+
+def county_fips(state_slug: str, county_slug: str) -> tuple[str, str]:
+    sf, cf, _name = resolve(state_slug, county_slug)
+    return sf, cf
+
+
+def fetch_tracts(state_fips: str, county_fips: str) -> dict[str, dict]:
+    """Public alias — {tract_GEOID: geometry} for the county (keyless TIGER)."""
+    return _tiger_tracts(state_fips, county_fips)
 
 
 def _tiger_tracts(state_fips: str, county_fips: str) -> dict[str, dict]:
@@ -149,7 +163,8 @@ def _classify(values: list[float]) -> tuple[list[float], list[int]]:
 
 
 def build_census_choropleths(state_slug: str, county_slug: str, layers: list[dict],
-                             on_log=None) -> dict:
+                             on_log=None, tracts: dict | None = None,
+                             sf: str | None = None, cf: str | None = None) -> dict:
     """For every catalog layer with a ``metric``, build a tract choropleth for the county.
 
     Returns ``{layer_id: {"features": [{geometry, value, cls}], "legend": {...}}}``.
@@ -161,13 +176,15 @@ def build_census_choropleths(state_slug: str, county_slug: str, layers: list[dic
     if not wanted or not HAS_METRICS:
         return {}
     try:
-        sf, cf = county_fips(state_slug, county_slug)
+        if sf is None or cf is None:
+            sf, cf, _ = resolve(state_slug, county_slug)
         metrics = [_METRIC[l["metric"]] for l in wanted]
         cols = sorted({c for m in metrics for c in (m.num if isinstance(m.num, list)
                        else [m.num] if m.num else []) + ([m.den] if m.den else [])
                        + ([m.raw] if m.raw else [])})
         cols = [c for c in cols if re.match(r"^B\d", c)]  # ACS B-table cols only
-        tracts = _tiger_tracts(sf, cf)
+        if tracts is None:
+            tracts = _tiger_tracts(sf, cf)
         acs = _acs_tract_values(sf, cf, cols)
         log(f"census: {len(tracts)} tracts, ACS for {len(acs)} tracts, {len(cols)} cols")
     except Exception as exc:

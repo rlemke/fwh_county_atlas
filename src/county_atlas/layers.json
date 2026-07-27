@@ -1208,6 +1208,216 @@
       "license": "CDC PLACES (public domain)"
     },
     {
+      "id": "health.obesity",
+      "label": "Obesity prevalence (adults)",
+      "category": "Public health",
+      "geometry": "choropleth",
+      "source": {
+        "kind": "domain",
+        "domain": "health",
+        "facet": "health.maps.BuildUSPrevalenceMap"
+      },
+      "places": "OBESITY",
+      "privacy": "aggregate",
+      "aggregation": {
+        "unit": "tract",
+        "measure": "rate",
+        "denom": "population"
+      },
+      "coverage": "national",
+      "tier": 2,
+      "license": "CDC PLACES (public domain)"
+    },
+    {
+      "id": "health.diabetes",
+      "label": "Diabetes prevalence (adults)",
+      "category": "Public health",
+      "geometry": "choropleth",
+      "source": {
+        "kind": "domain",
+        "domain": "health",
+        "facet": "health.maps.BuildUSPrevalenceMap"
+      },
+      "places": "DIABETES",
+      "privacy": "aggregate",
+      "aggregation": {
+        "unit": "tract",
+        "measure": "rate",
+        "denom": "population"
+      },
+      "coverage": "national",
+      "tier": 2,
+      "license": "CDC PLACES (public domain)"
+    },
+    {
+      "id": "health.asthma",
+      "label": "Current asthma (adults)",
+      "category": "Public health",
+      "geometry": "choropleth",
+      "source": {
+        "kind": "domain",
+        "domain": "health",
+        "facet": "health.maps.BuildUSPrevalenceMap"
+      },
+      "places": "CASTHMA",
+      "privacy": "aggregate",
+      "aggregation": {
+        "unit": "tract",
+        "measure": "rate",
+        "denom": "population"
+      },
+      "coverage": "national",
+      "tier": 2,
+      "license": "CDC PLACES (public domain)"
+    },
+    {
+      "id": "health.high_bp",
+      "label": "High blood pressure (adults)",
+      "category": "Public health",
+      "geometry": "choropleth",
+      "source": {
+        "kind": "domain",
+        "domain": "health",
+        "facet": "health.maps.BuildUSPrevalenceMap"
+      },
+      "places": "BPHIGH",
+      "privacy": "aggregate",
+      "aggregation": {
+        "unit": "tract",
+        "measure": "rate",
+        "denom": "population"
+      },
+      "coverage": "national",
+      "tier": 2,
+      "license": "CDC PLACES (public domain)"
+    },
+    {
+      "id": "health.chd",
+      "label": "Coronary heart disease (adults)",
+      "category": "Public health",
+      "geometry": "choropleth",
+      "source": {
+        "kind": "domain",
+        "domain": "health",
+        "facet": "health.maps.BuildUSPrevalenceMap"
+      },
+      "places": "CHD",
+      "privacy": "aggregate",
+      "aggregation": {
+        "unit": "tract",
+        "measure": "rate",
+        "denom": "population"
+      },
+      "coverage": "national",
+      "tier": 2,
+      "license": "CDC PLACES (public domain)"
+    },
+    {
+      "id": "health.stroke",
+      "label": "Stroke prevalence (adults)",
+      "category": "Public health",
+      "geometry": "choropleth",
+      "source": {
+        "kind": "domain",
+        "domain": "health",
+        "facet": "health.maps.BuildUSPrevalenceMap"
+      },
+      "places": "STROKE",
+      "privacy": "aggregate",
+      "aggregation": {
+        "unit": "tract",
+        "measure": "rate",
+        "denom": "population"
+      },
+      "coverage": "national",
+      "tier": 2,
+      "license": "CDC PLACES (public domain)"
+    },
+    {
+      "id": "health.cancer",
+      "label": "Cancer prevalence (adults)",
+      "category": "Public health",
+      "geometry": "choropleth",
+      "source": {
+        "kind": "domain",
+        "domain": "health",
+        "facet": "health.maps.BuildUSPrevalenceMap"
+      },
+      "places": "CANCER",
+      "privacy": "aggregate",
+      "aggregation": {
+        "unit": "tract",
+        "measure": "rate",
+        "denom": "population"
+      },
+      "coverage": "national",
+      "tier": 2,
+      "license": "CDC PLACES (public domain)"
+    },
+    {
+      "id": "health.mental_distress",
+      "label": "Frequent mental distress (adults)",
+      "category": "Public health",
+      "geometry": "choropleth",
+      "source": {
+        "kind": "domain",
+        "domain": "health",
+        "facet": "health.maps.BuildUSPrevalenceMap"
+      },
+      "places": "MHLTH",
+      "privacy": "aggregate",
+      "aggregation": {
+        "unit": "tract",
+        "measure": "rate",
+        "denom": "population"
+      },
+      "coverage": "national",
+      "tier": 2,
+      "license": "CDC PLACES (public domain)"
+    },
+    {
+      "id": "health.no_checkup",
+      "label": "No routine checkup (adults)",
+      "category": "Public health",
+      "geometry": "choropleth",
+      "source": {
+        "kind": "domain",
+        "domain": "health",
+        "facet": "health.maps.BuildUSPrevalenceMap"
+      },
+      "places": "CHECKUP",
+      "privacy": "aggregate",
+      "aggregation": {
+        "unit": "tract",
+        "measure": "rate",
+        "denom": "population"
+      },
+      "coverage": "national",
+      "tier": 2,
+      "license": "CDC PLACES (public domain)"
+    },
+    {
+      "id": "health.smoking",
+      "label": "Current smoking (adults)",
+      "category": "Public health",
+      "geometry": "choropleth",
+      "source": {
+        "kind": "domain",
+        "domain": "health",
+        "facet": "health.maps.BuildUSPrevalenceMap"
+      },
+      "places": "CSMOKING",
+      "privacy": "aggregate",
+      "aggregation": {
+        "unit": "tract",
+        "measure": "rate",
+        "denom": "population"
+      },
+      "coverage": "national",
+      "tier": 2,
+      "license": "CDC PLACES (public domain)"
+    },
+    {
       "id": "cdc.overdose",
       "label": "Overdose mortality rate",
       "category": "Public health",
@@ -1311,7 +1521,12 @@
       "privacy": "public",
       "coverage": "national",
       "tier": 2,
-      "license": "EPA TRI (public domain)"
+      "license": "EPA TRI (public domain)",
+      "epa_source": "tri",
+      "style": {
+        "marker": "diamond",
+        "color": "#b8860b"
+      }
     },
     {
       "id": "epa.drinking_water",

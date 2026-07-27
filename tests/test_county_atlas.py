@@ -109,3 +109,31 @@ def test_render_choropleth_emits_legend_and_toggle():
     assert "var CHORO=" in html and 'id="lgd"' in html
     assert "Median household income" in html
     assert "http://" not in html  # still self-contained
+
+
+# --- tier-2 health (CDC PLACES) + EPA (TRI) -----------------------------------
+
+def test_places_and_tri_catalog_flags():
+    layers = catalog.load_catalog()["layers"]
+    places = [l for l in layers if l.get("places")]
+    assert len(places) >= 8
+    assert all(l["geometry"] == "choropleth" and l["privacy"] == "aggregate" for l in places)
+    tri = [l for l in layers if l.get("epa_source") == "tri"]
+    assert tri and tri[0]["geometry"] == "point" and tri[0]["privacy"] == "public"
+
+
+def test_epa_state_abbr_and_layer_filter():
+    from county_atlas.tools._county_atlas_tools import epa
+    assert epa.STATE_ABBR["oregon"] == "OR" and epa.STATE_ABBR["district-of-columbia"] == "DC"
+    # no epa_source=tri layers -> no fetch, empty result (offline)
+    assert epa.build_epa_points("oregon", "coos", [{"id": "x", "epa_source": "other"}],
+                                "OR", "Coos") == {}
+
+
+def test_health_degrades_gracefully_without_key(monkeypatch):
+    from county_atlas.tools._county_atlas_tools import health
+    monkeypatch.delenv("CENSUS_API_KEY", raising=False)
+    # a PLACES layer but no key to resolve FIPS -> returns {} (stays "not available")
+    out = health.build_places_choropleths(
+        "oregon", "coos", [{"id": "health.obesity", "places": "OBESITY"}])
+    assert out == {}

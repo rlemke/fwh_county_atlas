@@ -18,6 +18,8 @@ Full architecture: [`docs/architecture/county-atlas.md`](https://github.com/rlem
 | **Renderer** — GeoJSON layers → self-contained interactive HTML (SVG map + checkbox tree) | [`render.py`](src/county_atlas/tools/_county_atlas_tools/render.py) |
 | **Materializer** — osmium: county PBF → per-layer GeoJSON | [`materialize.py`](src/county_atlas/tools/_county_atlas_tools/materialize.py) |
 | **Tier-2 census join** — ACS → tract geometry → per-county choropleths (reuses `census-us` metric registry) | [`census.py`](src/county_atlas/tools/_county_atlas_tools/census.py) |
+| **Tier-2 health join** — CDC PLACES tract prevalence → choropleths | [`health.py`](src/county_atlas/tools/_county_atlas_tools/health.py) |
+| **Tier-2 EPA join** — TRI facilities → per-county points | [`epa.py`](src/county_atlas/tools/_county_atlas_tools/epa.py) |
 | **Storage** — county PBF in / atlas out, backend-aware object store | [`storage.py`](src/county_atlas/tools/_county_atlas_tools/storage.py) |
 
 ## What's in the catalog

@@ -52,18 +52,32 @@ choropleths (WIRED — see below) + health/EPA; **3** = expensive calc (isochron
 raster. `BuildCountyAtlas(tier=N)` materializes layers with `tier <= N`. The offline CLI
 renders tier-1; the handler renders tier-1 + tier-2 census.
 
-## Tier-2 census join (`census.py`)
+## Tier-2 joins (`census.py`, `health.py`, `epa.py`)
 
-Every catalog census layer with a `metric` field (→ a `census_us.tools._lib.metrics`
-key) becomes a **census-tract choropleth** for the county. `census.py` **reuses that
-metric registry + `compute_metric`** (do not reimplement the ACS math), fetches keyless
-TIGER tract geometry + ACS values (Census API — needs `CENSUS_API_KEY`, present in the
-runner env), joins by GEOID, quantile-classifies into 5 breaks, and returns per-tract
-`{value, cls}` + a legend. The renderer draws these UNDER the OSM overlays; the UI makes
-them **mutually exclusive** (one thematic layer at a time) with a live legend. On any
-failure (no key, no census-us, network) `build_census_choropleths` returns `{}` and the
-layer stays "not available" — never faked. `aggregate` privacy is honored: tract areas,
-never points.
+Tier-2 layers carry a small field naming their source; the matching module builds them:
+
+- **`census.py`** — a `metric` field (→ a `census_us.tools._lib.metrics` key). **Reuses
+  that registry + `compute_metric`** (do not reimplement the ACS math): keyless TIGER
+  tract geometry + ACS values (needs `CENSUS_API_KEY`), joined by GEOID, quantile-
+  classified into 5 breaks → tract choropleth. `census.resolve()` + `census.fetch_tracts()`
+  are the shared FIPS + tract-geometry primitives.
+- **`health.py`** — a `places` field (a CDC PLACES `measureid`, e.g. `OBESITY`). Reuses
+  `census.fetch_tracts()` geometry + the same choropleth shape; data from the keyless CDC
+  Socrata PLACES tract dataset by county FIPS.
+- **`epa.py`** — an `epa_source` field (`tri`). EPA TRI facilities fetched per-county from
+  Envirofacts (`STATE_ABBR` + `COUNTY_NAME`, coords in `pref_latitude/longitude`) →
+  point FeatureCollection injected into `materialized`, rendered like an OSM point layer.
+
+Shared rules: choropleths render UNDER the OSM overlays; the UI makes them **mutually
+exclusive** (one thematic layer at a time) with a live legend. `aggregate` privacy →
+tract areas, never points. Any failure (no key/data/network) returns `{}` and the layer
+stays "not available" — **never faked**. Adding a new tier-2 source = a `<source>.py`
+fetcher + a field on its catalog layers, following this pattern.
+
+**EPA Superfund / Brownfields are NOT wired:** their EMEF ArcGIS MapServer only serves
+the national set (`where=1=1`); county/bbox filters 400. Wiring them needs a national
+fetch cached once + a client-side bbox filter (a shared `_shared/` cache), not a national
+download per county — left as a TODO; the catalog keeps them "not available".
 
 ## Tests
 
@@ -74,8 +88,8 @@ assertion in the same change.
 
 ## Not yet done
 
-- Tier-2 **health/EPA/USGS/FEMA** joins (census is done; extend `census.py`'s pattern —
-  a `<source>.py` fetcher + a `metric`/`source` field per catalog layer).
+- EPA **Superfund/Brownfields** (need the national-cache + bbox-filter approach above),
+  and tier-2 **USGS/FEMA/NOAA** joins (extend the `<source>.py` + catalog-field pattern).
 - Tier-3 calculated indicators (isochrone coverage via `osm.Network`, per-capita).
 - Master-index state/US pages beyond the flat grouped list.
 - Fleet registration (`domains.json` + image bake) — this is a local domain today.

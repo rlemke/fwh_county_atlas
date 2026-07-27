@@ -45,13 +45,32 @@ def build_county_atlas(county_key: str, tier: int = 1, bucket: str = storage.BUC
         layers = catalog.osm_layers(tier_max=tier)
         materialized, counts = materialize.materialize_osm(pbf, layers, skip=HEAVY_SKIP)
 
-        # tier-2: census-tract choropleths (reuses census-us's ACS metric registry)
+        # tier-2: census + CDC-PLACES tract choropleths + EPA facility points.
+        # Resolve FIPS + tract geometry ONCE and share across census/health.
         choropleths: dict = {}
         if tier >= 2:
-            from . import census
-            census_layers = [l for l in cat["layers"] if l.get("metric")]
-            choropleths = census.build_census_choropleths(
-                state, county, census_layers, on_log=log)
+            from . import census, epa, health
+            cat_layers = cat["layers"]
+            sf = cf = cname = tracts = None
+            try:
+                sf, cf, cname = census.resolve(state, county)
+                tracts = census.fetch_tracts(sf, cf)
+            except Exception as exc:
+                log(f"tier-2 geo resolve skipped: {exc}")
+            if tracts is not None:
+                choropleths.update(census.build_census_choropleths(
+                    state, county, [l for l in cat_layers if l.get("metric")],
+                    on_log=log, tracts=tracts, sf=sf, cf=cf))
+                choropleths.update(health.build_places_choropleths(
+                    state, county, [l for l in cat_layers if l.get("places")],
+                    on_log=log, tracts=tracts, sf=sf, cf=cf))
+            ab = epa.STATE_ABBR.get(state)
+            if cname and ab:
+                for lid, fc in epa.build_epa_points(
+                        state, county, [l for l in cat_layers if l.get("epa_source")],
+                        ab, cname, on_log=log).items():
+                    materialized[lid] = fc
+                    counts[lid] = len(fc["features"])
 
         html = render.build_atlas_html(cat, materialized, counts, state, county,
                                        choropleths=choropleths)
