@@ -64,6 +64,15 @@ def build_county_atlas(county_key: str, tier: int = 1, bucket: str = storage.BUC
                 choropleths.update(health.build_places_choropleths(
                     state, county, [l for l in cat_layers if l.get("places")],
                     on_log=log, tracts=tracts, sf=sf, cf=cf))
+                choropleths.update(census.build_direct_choropleths(
+                    state, county, [l for l in cat_layers if l.get("census_var")],
+                    on_log=log, tracts=tracts, sf=sf, cf=cf))
+                # tract boundary overlay — reuse the already-fetched tract geometry (free)
+                for tl in (l for l in cat_layers if l.get("boundary_source") == "tracts"):
+                    materialized[tl["id"]] = {"type": "FeatureCollection", "features": [
+                        {"type": "Feature", "geometry": g, "properties": {}}
+                        for g in tracts.values()]}
+                    counts[tl["id"]] = len(tracts)
             # county bbox from the OSM boundary — used by EPA(super/brown), USGS, NOAA
             from . import fema, noaa, render as _render, usgs
             bbox = _render._bbox(
@@ -89,6 +98,22 @@ def build_county_atlas(county_key: str, tier: int = 1, bucket: str = storage.BUC
                         s3, bucket, on_log=log).items():
                     materialized[lid] = fc
                     counts[lid] = len(fc["features"])
+                # HUD public housing points (bbox)
+                from . import hud
+                for lid, fc in hud.build_hud(
+                        bbox, [l for l in cat_layers if l.get("hud_source")],
+                        on_log=log).items():
+                    materialized[lid] = fc
+                    counts[lid] = len(fc["features"])
+                # TIGER boundary overlays: block groups + school districts (need FIPS)
+                if sf and cf:
+                    from . import tiger
+                    for lid, fc in tiger.build_boundaries(
+                            sf, cf, bbox,
+                            [l for l in cat_layers if l.get("boundary_source")
+                             in ("block_groups", "school_districts")], on_log=log).items():
+                        materialized[lid] = fc
+                        counts[lid] = len(fc["features"])
 
             # FEMA National Risk Index tract choropleth (needs county FIPS)
             if sf and cf:

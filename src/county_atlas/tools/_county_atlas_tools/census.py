@@ -143,6 +143,65 @@ def _acs_tract_values(state_fips: str, county_fips: str, cols: list[str]) -> dic
     return out
 
 
+def build_direct_choropleths(state_slug: str, county_slug: str, layers: list[dict],
+                             on_log=None, tracts: dict | None = None,
+                             sf: str | None = None, cf: str | None = None) -> dict:
+    """Tract choropleths from layers that name raw ACS columns via ``census_var``.
+
+    ``census_var`` is either ``{"raw": col, "fmt": ...}`` (a direct value) or
+    ``{"num": [cols], "den": col, "fmt": "pct"}`` (a summed-ratio percentage). For the
+    metrics not in the census-us registry (home value, building age, commute, language,
+    disability). Same shape as ``build_census_choropleths``.
+    """
+    log = on_log or (lambda *_a, **_k: None)
+    wanted = [l for l in layers if l.get("census_var")]
+    if not wanted:
+        return {}
+    try:
+        if sf is None or cf is None:
+            sf, cf, _ = resolve(state_slug, county_slug)
+        cols: set[str] = set()
+        for l in wanted:
+            v = l["census_var"]
+            if v.get("raw"):
+                cols.add(v["raw"])
+            cols.update(v.get("num", []))
+            if v.get("den"):
+                cols.add(v["den"])
+        if tracts is None:
+            tracts = _tiger_tracts(sf, cf)
+        acs = _acs_tract_values(sf, cf, sorted(cols))
+        log(f"census-direct: {len(acs)} tracts, {len(cols)} cols")
+    except Exception as exc:
+        log(f"census-direct skipped: {exc}")
+        return {}
+
+    geoids = [g for g in tracts if g in acs]
+    out: dict[str, dict] = {}
+    for lyr in wanted:
+        v = lyr["census_var"]
+        series = []
+        for g in geoids:
+            p = acs[g]
+            if v.get("raw"):
+                val = p.get(v["raw"])
+                if val is not None and val < 0:   # ACS uses negatives as annotations
+                    val = None
+            else:
+                den = p.get(v["den"])
+                val = (sum(p.get(c) or 0 for c in v["num"]) / den * 100) if den else None
+            series.append(val)
+        breaks, cls = _classify(series)
+        out[lyr["id"]] = {
+            "features": [{"geometry": tracts[g], "value": series[i], "cls": cls[i]}
+                         for i, g in enumerate(geoids)],
+            "legend": {"label": lyr["label"], "fmt": v.get("fmt", "pct"),
+                       "worse": v.get("worse", "high"), "breaks": breaks,
+                       "colors": RAMP, "nodata": NODATA},
+        }
+    return out
+
+
 def _classify(values: list[float]) -> tuple[list[float], list[int]]:
     """Quantile breaks (5 classes) + a class index per value (None -> -1)."""
     real = sorted(v for v in values if v is not None)

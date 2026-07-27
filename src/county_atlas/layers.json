@@ -106,11 +106,12 @@
       "coverage": "national",
       "tier": 2,
       "style": {
-        "line": "#999",
-        "width": 0.5,
+        "line": "#9c27b0",
+        "width": 0.8,
         "fill": "none"
       },
-      "license": "US Census (public domain)"
+      "license": "US Census (public domain)",
+      "boundary_source": "tracts"
     },
     {
       "id": "census.block_groups",
@@ -125,7 +126,13 @@
       "privacy": "public",
       "coverage": "national",
       "tier": 2,
-      "license": "US Census (public domain)"
+      "license": "US Census (public domain)",
+      "boundary_source": "block_groups",
+      "style": {
+        "fill": "none",
+        "line": "#ba68c8",
+        "width": 0.8
+      }
     },
     {
       "id": "census.zcta",
@@ -155,7 +162,13 @@
       "privacy": "public",
       "coverage": "national",
       "tier": 2,
-      "license": "US Census (public domain)"
+      "license": "US Census (public domain)",
+      "boundary_source": "school_districts",
+      "style": {
+        "fill": "none",
+        "line": "#ff7043",
+        "width": 0.8
+      }
     },
     {
       "id": "census.tribal",
@@ -586,7 +599,12 @@
       "privacy": "public",
       "coverage": "national",
       "tier": 2,
-      "license": "USGS (public domain)"
+      "license": "USGS (public domain)",
+      "usgs_source": "faults",
+      "style": {
+        "line": "#795548",
+        "width": 1.2
+      }
     },
     {
       "id": "usgs.aquifers",
@@ -925,7 +943,7 @@
     },
     {
       "id": "census.language",
-      "label": "Language & limited-English",
+      "label": "Limited-English households",
       "category": "Population and demographics",
       "geometry": "choropleth",
       "source": {
@@ -941,7 +959,18 @@
       },
       "coverage": "national",
       "tier": 2,
-      "license": "US Census (public domain)"
+      "license": "US Census (public domain)",
+      "census_var": {
+        "num": [
+          "C16002_003E",
+          "C16002_006E",
+          "C16002_009E",
+          "C16002_012E"
+        ],
+        "den": "C16002_001E",
+        "fmt": "pct",
+        "worse": "high"
+      }
     },
     {
       "id": "census.disability",
@@ -961,7 +990,26 @@
       },
       "coverage": "national",
       "tier": 2,
-      "license": "US Census (public domain)"
+      "license": "US Census (public domain)",
+      "census_var": {
+        "num": [
+          "B18101_004E",
+          "B18101_007E",
+          "B18101_010E",
+          "B18101_013E",
+          "B18101_016E",
+          "B18101_019E",
+          "B18101_023E",
+          "B18101_026E",
+          "B18101_029E",
+          "B18101_032E",
+          "B18101_035E",
+          "B18101_038E"
+        ],
+        "den": "B18101_001E",
+        "fmt": "pct",
+        "worse": "high"
+      }
     },
     {
       "id": "census.internet_vehicle",
@@ -1048,7 +1096,7 @@
     },
     {
       "id": "census.commute",
-      "label": "Commute time & work-from-home",
+      "label": "Long commute (30+ min)",
       "category": "Income, employment and economic conditions",
       "geometry": "choropleth",
       "source": {
@@ -1063,7 +1111,20 @@
       },
       "coverage": "national",
       "tier": 2,
-      "license": "US Census (public domain)"
+      "license": "US Census (public domain)",
+      "census_var": {
+        "num": [
+          "B08303_008E",
+          "B08303_009E",
+          "B08303_010E",
+          "B08303_011E",
+          "B08303_012E",
+          "B08303_013E"
+        ],
+        "den": "B08303_001E",
+        "fmt": "pct",
+        "worse": "high"
+      }
     },
     {
       "id": "osm.commercial",
@@ -1096,7 +1157,12 @@
       },
       "coverage": "national",
       "tier": 2,
-      "license": "US Census (public domain)"
+      "license": "US Census (public domain)",
+      "census_var": {
+        "raw": "B25077_001E",
+        "fmt": "dollar",
+        "worse": "high"
+      }
     },
     {
       "id": "census.rent",
@@ -1157,7 +1223,12 @@
       },
       "coverage": "national",
       "tier": 2,
-      "license": "US Census (public domain)"
+      "license": "US Census (public domain)",
+      "census_var": {
+        "raw": "B25035_001E",
+        "fmt": "year",
+        "worse": "low"
+      }
     },
     {
       "id": "hud.public_housing",
@@ -1172,7 +1243,12 @@
       "privacy": "public",
       "coverage": "national",
       "tier": 2,
-      "license": "HUD (public domain)"
+      "license": "HUD (public domain)",
+      "hud_source": "public_housing",
+      "style": {
+        "marker": "square",
+        "color": "#3949ab"
+      }
     },
     {
       "id": "health.life_expectancy",

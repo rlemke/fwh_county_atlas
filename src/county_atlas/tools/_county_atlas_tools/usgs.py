@@ -19,6 +19,8 @@ import urllib.request
 FDSN = "https://earthquake.usgs.gov/fdsnws/event/1/query"
 AQUIFER = ("https://services1.arcgis.com/RQG3sksSXcoDoIfj/arcgis/rest/services/"
            "Principal_Aquifers_of_the_United_States/FeatureServer/0/query")
+FAULTS = ("https://earthquake.usgs.gov/arcgis/rest/services/haz/hazfaults2014/"
+          "MapServer/0/query")
 MIN_MAG = float(os.environ.get("FW_ATLAS_QUAKE_MINMAG", "2.5"))
 
 
@@ -60,6 +62,8 @@ def build_usgs(bbox, layers: list[dict], on_log=None) -> dict:
                 feats = _earthquakes(bbox)
             elif src == "aquifers":
                 feats = _arcgis_envelope(AQUIFER, bbox)
+            elif src == "faults":
+                feats = _arcgis_envelope(FAULTS, bbox)
             else:
                 continue
             if feats:

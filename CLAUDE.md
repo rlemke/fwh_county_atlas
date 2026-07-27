@@ -71,12 +71,21 @@ Tier-2 layers carry a small field naming their source; the matching module build
   `resultOffset`), so it's fetched once → cached at `county-atlas/_shared/epa_<ds>.geojson`
   → bbox-clipped per county (EMEF props are lowercase — `primary_name`, `county_name`,
   `fips_code`). All three → point FeatureCollections injected into `materialized`.
-- **`usgs.py`** — a `usgs_source` field (`earthquakes` | `aquifers`). USGS FDSN event API
-  (bbox query → points) + the Principal-Aquifers ArcGIS FeatureServer (bbox envelope →
-  polygons). Both bbox-scoped from the OSM county boundary → `materialized`.
+- **`usgs.py`** — a `usgs_source` field (`earthquakes` | `aquifers` | `faults`). USGS FDSN
+  event API (bbox → points) + Principal-Aquifers ArcGIS (envelope → polygons) + the
+  Quaternary-faults MapServer (envelope → lines). All bbox-scoped → `materialized`.
 - **`fema.py`** — a `fema_source` field (`nri`). FEMA National Risk Index **Census-Tracts**
   ArcGIS FeatureServer, queried by `STCOFIPS`; returns per-tract `RISK_SCORE` **with tract
   geometry**, so the choropleth is built from NRI's own geometry (no census join).
+- **`census.py` (direct-column)** — a `census_var` field (`{"raw": col}` or
+  `{"num":[cols],"den":col}`) for ACS metrics not in the `census-us` registry (home value,
+  building age, long commute, limited-English, disability) → tract choropleths.
+- **`hud.py`** — a `hud_source` field (`public_housing`). HUD Public-Housing-Buildings
+  ArcGIS FeatureServer, bbox envelope → points.
+- **`tiger.py`** — a `boundary_source` field (`block_groups` | `school_districts`).
+  Per-state TIGER/Line shapefiles → line-only polygon overlays (block groups filtered by
+  `COUNTYFP`; school districts bbox-filtered). `tracts` reuses `census.fetch_tracts`
+  geometry (no refetch) as a tract overlay, wired directly in atlas.py.
 - **`noaa.py`** — a `noaa_source` field (`stations`). GHCN-Daily station inventory
   (~10 MB) fetched ONCE and cached in the object store at `county-atlas/_shared/`, then
   bbox-filtered per county → station points. Parses via `noaa_weather`'s `parse_stations`
@@ -122,6 +131,13 @@ assertion in the same change.
 
 ## Not yet done
 
+- **Layers needing a different capability, not just wiring:** rasters (`usgs.elevation`,
+  `nlcd.land_cover`, `usda.cropland`) + `fema.floodplains` need a tile/COG renderer the
+  SVG plate can't do; `census.zcta` (national ZCTA file ~500 MB) and `census.tribal` /
+  `epa.drinking_water` are left honestly "not available".
+- **County-single-value metrics** (`health.life_expectancy`, `cdc.overdose`,
+  `epa.air_quality`, `noaa.climate`) should become indicator-panel stats (via the tier-3
+  `extra_indicators` mechanism), not within-county choropleths.
 - **True network isochrones** — the `nearest_distance` calc is straight-line; a real
   N-minute walk/drive coverage needs `osm.Network` (fwh_osm) graph routing per tract.
 - Master-index state/US pages beyond the flat grouped list.

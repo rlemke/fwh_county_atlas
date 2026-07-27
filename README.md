@@ -23,6 +23,8 @@ Full architecture: [`docs/architecture/county-atlas.md`](https://github.com/rlem
 | **Tier-2 USGS join** — earthquakes (bbox) + aquifers (ArcGIS) | [`usgs.py`](src/county_atlas/tools/_county_atlas_tools/usgs.py) |
 | **Tier-2 FEMA join** — National Risk Index tract choropleth | [`fema.py`](src/county_atlas/tools/_county_atlas_tools/fema.py) |
 | **Tier-2 NOAA join** — GHCN weather stations (shared cache) | [`noaa.py`](src/county_atlas/tools/_county_atlas_tools/noaa.py) |
+| **Tier-2 HUD join** — public-housing points | [`hud.py`](src/county_atlas/tools/_county_atlas_tools/hud.py) |
+| **TIGER boundary overlays** — block groups + school districts | [`tiger.py`](src/county_atlas/tools/_county_atlas_tools/tiger.py) |
 | **Tier-3 calculated indicators** — ratio / nearest-distance choropleths + per-capita panel stats | [`calc.py`](src/county_atlas/tools/_county_atlas_tools/calc.py) |
 | **Storage** — county PBF in / atlas out, backend-aware object store | [`storage.py`](src/county_atlas/tools/_county_atlas_tools/storage.py) |
 

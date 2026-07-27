@@ -189,6 +189,47 @@ def test_calc_catalog_layers_have_ops():
     assert all(l["calc"]["op"] in {"ratio", "nearest_distance", "per_capita"} for l in calcs)
 
 
+# --- mechanical layers: direct-column ACS, HUD, TIGER overlays, faults ---------
+
+def test_mechanical_layer_catalog_flags():
+    layers = catalog.load_catalog()["layers"]
+    assert sum(1 for l in layers if l.get("census_var")) >= 5      # direct-column ACS
+    assert any(l.get("usgs_source") == "faults" for l in layers)
+    assert any(l.get("hud_source") == "public_housing" and l["geometry"] == "point" for l in layers)
+    assert any(l.get("boundary_source") == "tracts" for l in layers)
+    assert any(l.get("boundary_source") == "block_groups" for l in layers)
+    # every census_var is a raw value or a summed-ratio
+    for l in layers:
+        v = l.get("census_var")
+        if v:
+            assert v.get("raw") or (v.get("num") and v.get("den"))
+
+
+def test_census_direct_degrades_without_key(monkeypatch):
+    from county_atlas.tools._county_atlas_tools import census
+    monkeypatch.delenv("CENSUS_API_KEY", raising=False)
+    out = census.build_direct_choropleths(
+        "oregon", "coos", [{"id": "census.home_value", "label": "Home value",
+                            "census_var": {"raw": "B25077_001E", "fmt": "dollar"}}])
+    assert out == {}
+
+
+def test_tiger_bbox_hit_and_hud_shortcircuit():
+    from county_atlas.tools._county_atlas_tools import hud, tiger
+
+    class Inside:
+        bbox = [-124.3, 43.2, -124.1, 43.4]
+
+    class Outside:
+        bbox = [-100.0, 40.0, -99.0, 41.0]
+
+    county = (-124.6, 42.8, -123.8, 43.7)
+    assert tiger._bbox_hit(Inside(), county) is True
+    assert tiger._bbox_hit(Outside(), county) is False
+    # no hud_source layers -> no fetch (offline)
+    assert hud.build_hud(county, [{"id": "x"}]) == {}
+
+
 def test_health_degrades_gracefully_without_key(monkeypatch):
     from county_atlas.tools._county_atlas_tools import health
     monkeypatch.delenv("CENSUS_API_KEY", raising=False)
