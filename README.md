@@ -15,6 +15,7 @@ Full architecture: [`docs/architecture/county-atlas.md`](https://github.com/rlem
 |------|-----|
 | **Layer catalog** — the 91-layer registry, source kinds, privacy tiers, coverage | [`layers.json`](src/county_atlas/layers.json) |
 | **Fan-out** — `ListCounties` → `foreach` → `BuildCountyAtlas`, one county per task | [`ffl/atlas.ffl`](src/county_atlas/ffl/atlas.ffl) |
+| **FFL usage patterns** — compile-checked example gallery over these facets | [`docs/ffl-examples.md`](docs/ffl-examples.md) |
 | **Renderer** — GeoJSON layers → self-contained interactive HTML (SVG map + checkbox tree) | [`render.py`](src/county_atlas/tools/_county_atlas_tools/render.py) |
 | **Materializer** — osmium: county PBF → per-layer GeoJSON | [`materialize.py`](src/county_atlas/tools/_county_atlas_tools/materialize.py) |
 | **Tier-2 census join** — ACS → tract geometry → per-county choropleths (reuses `census-us` metric registry) | [`census.py`](src/county_atlas/tools/_county_atlas_tools/census.py) |
@@ -74,6 +75,40 @@ fw ffl run --workflow county.atlas.workflows.BuildAtlasFanout \
   --inputs '{"prefix":"north-america/us","tier":1}'
 fw ffl run --workflow county.atlas.workflows.BuildMasterIndexMap
 ```
+
+## FFL at a glance
+
+The domain is driven from [FFL](https://github.com/rlemke/facetwork/blob/main/docs/reference/language/grammar.md),
+Facetwork's workflow language. A step is `name = Facet(args)`, and `andThen
+foreach` is what turns one step into ~3,143 parallel county builds:
+
+```ffl
+namespace my.atlas {
+
+    use county.atlas
+
+    /** One atlas task per county leaf — the national fan-out. */
+    workflow AtlasEverywhere(prefix: String = "north-america/us", tier: Long = 1) => (built: [String]) andThen {
+
+        counties = county.atlas.ListCounties(prefix = $.prefix) andThen foreach c in $.counties {
+
+            atlas = county.atlas.BuildCountyAtlas(county_key = $.c, tier = $$.tier)
+
+            yield AtlasEverywhere(built = [atlas.html_path])
+        }
+    }
+}
+```
+
+```bash
+fw ffl run --primary my.ffl --library src/county_atlas/ffl/atlas.ffl \
+  --workflow my.atlas.AtlasEverywhere
+```
+
+📖 **[docs/ffl-examples.md](docs/ffl-examples.md)** — the full example gallery:
+rebuilding just the counties you name, call-time mixins (extra timeout for big
+counties), `catch` so one bad extract doesn't kill the run, `when` quality gates,
+and why line order is not run order. Every snippet there is compile-checked.
 
 Preview a single county offline from a local PBF:
 
