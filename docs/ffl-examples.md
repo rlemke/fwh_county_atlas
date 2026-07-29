@@ -134,32 +134,34 @@ fw ffl run --primary my.ffl --library …/atlas.ffl --workflow my.atlas.AtlasFor
 ## 5. Fan-in — index after the atlases exist
 
 `BuildMasterIndex` reads whatever atlases are already in the object store, so it
-needs no value from the fan-out. Independent steps may run in any order, so create
-the ordering by referencing an upstream field.
+needs no value from the fan-out. Independent steps may run in any order, so state
+the ordering with `after` — naming a `foreach` step waits for **every** iteration,
+which is what makes this a true fan-in.
 
 ```ffl
 namespace my.atlas {
 
     use county.atlas
 
-    /** One county, then the master index. NOTE: these two steps are independent. */
+    /** One county, then the master index — ordered by `after`. */
     workflow AtlasThenIndex(county_key: String = "north-america/us/oregon/coos") => (index_path: String) andThen {
 
         atlas = county.atlas.BuildCountyAtlas(county_key = $.county_key)
 
-        idx = county.atlas.BuildMasterIndex(prefix = "north-america/us", bucket = "osm-extracts")
+        idx = county.atlas.BuildMasterIndex(prefix = "north-america/us", bucket = "osm-extracts") after atlas
 
         yield AtlasThenIndex(index_path = idx.index_path)
     }
 }
 ```
 
-> ⚠️ Line order is **not** run order. Nothing in `idx` references `atlas`, so the
-> two may run concurrently and the index can miss the county just built. Ordering
-> in FFL comes from references: the map domains pass an upstream field into a
-> `dependency_signal` parameter for exactly this reason. `BuildMasterIndex` takes
-> no such parameter, so run the index as its own submission after the fan-out
-> finishes — that is what the shipped `BuildMasterIndexMap` workflow is for.
+> ⚠️ Line order is **not** run order. Without the `after atlas` clause nothing in
+> `idx` references `atlas`, so the two run concurrently and the index can miss the
+> county just built. The dependency is real but invisible to the compiler — it runs
+> through the object store, not through a value — which is precisely when `after`
+> is required. (Before the clause existed this was unexpressible, and the advice
+> here was to run the index as a separate submission; the shipped
+> `BuildMasterIndexMap` workflow remains useful for indexing without rebuilding.)
 
 ## 6. Call-time mixins — timeouts and retries
 
