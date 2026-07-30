@@ -55,7 +55,7 @@ enforced catalog field: `aggregate` layers may only render as area rates, never 
 | `BuildCountyAtlas(county_key, tier)` | Build one county: download → materialize → render → store |
 | `BuildMasterIndex(prefix)` | US → state → county index over the built atlases |
 | `workflows.BuildCountyAtlasMap(county_key)` | Build a single county's atlas |
-| `workflows.BuildAtlasFanout(prefix, tier)` | **Fan-out** — one `BuildCountyAtlas` per county, fleet-wide |
+| `workflows.BuildAtlasFanout(prefix, tier, bucket, concurrency)` | **Fan-out** — one `BuildCountyAtlas` per county, fleet-wide, `concurrency` at a time (default 32) |
 | `workflows.BuildMasterIndexMap(prefix)` | Build the master index after a fan-out |
 
 Output → `county-atlas/<state>/<county>/index.html` (+ `manifest.json`) in the object
@@ -72,7 +72,7 @@ Fan out every county (needs the `osm.planet` county extracts already present):
 
 ```bash
 fw ffl run --workflow county.atlas.workflows.BuildAtlasFanout \
-  --inputs '{"prefix":"north-america/us","tier":1}'
+  --inputs '{"prefix":"north-america/us","tier":1,"concurrency":32}'
 fw ffl run --workflow county.atlas.workflows.BuildMasterIndexMap
 ```
 

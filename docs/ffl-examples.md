@@ -30,7 +30,7 @@ them from a single `foreach`. The FFL below is where that parallelism is express
 | `county.atlas.BuildCountyAtlas` | `(county_key: String, tier: Long = 1, bucket = "osm-extracts") => (html_path, layer_count, feature_count)` | Build ONE county's atlas from its OSM extract |
 | `county.atlas.BuildMasterIndex` | `(prefix, bucket) => (index_path, county_count)` | US → state → county index over every atlas written so far |
 | `county.atlas.workflows.BuildCountyAtlasMap` | `(county_key: String, tier: Long = 1)` | One county, end to end |
-| `county.atlas.workflows.BuildAtlasFanout` | `(prefix, tier, bucket) => (built: [String])` | The national fan-out |
+| `county.atlas.workflows.BuildAtlasFanout` | `(prefix, tier, bucket, concurrency: Long = 32) => (built: [String])` | The national fan-out, `concurrency` counties in flight at a time |
 | `county.atlas.workflows.BuildMasterIndexMap` | `(prefix)` | The index, after a fan-out |
 
 ---
