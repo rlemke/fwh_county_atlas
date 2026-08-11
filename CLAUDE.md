@@ -34,15 +34,14 @@ src/county_atlas/
 - **Privacy is enforced.** `public` renders as-is; `aggregate` must be an area rate, never
   points; `generalized` snaps to grid/service-area; `suppressed` is omitted. The renderer
   must never plot an `aggregate` layer as points.
-- **Fan-out mirrors `osm.planet`, and is deliberately UNBOUNDED.** `BuildAtlasFanout` =
-  `ListCounties(...) andThen foreach cty in $.counties { BuildCountyAtlas(county_key =
-  $.cty, tier = $$.tier) }`. One county per task, distributed; wall-clock ≈ slowest
-  county. Same idiom as `osm.planet.BuildAdminFanout` — keep it consistent.
-  **Do not add `foreach … limit` here.** It was tried and reverted (2026-07-30): the cap
-  works, but leaf steps strand at `state.statement.blocks.Begin` after their task
-  completes, and stranded sub-blocks then hold every window slot, so admission stops
-  dead (froze at 628/3,167). Unbounded survives the same stranding — the national run
-  stranded ~10% and still finished.
+- **Fan-out mirrors `osm.planet`, but bounded.** `BuildAtlasFanout` = `ListCounties(...)
+  andThen foreach cty in $.counties limit $$.concurrency { BuildCountyAtlas(county_key =
+  $.cty, tier = $$.tier) }`. One county per task, distributed, `concurrency` at a time
+  (default 32). Same idiom as `osm.planet.BuildAdminFanout` — keep it consistent.
+  The `limit` is not decoration: the national run materialized 3,167 concurrent
+  sub-blocks / 3,290 tasks while only **7 servers ever executed a task**, so width far
+  past the number of runners serving the facet buys no throughput and costs step
+  records, block-cascade work, and scratch disk per in-flight county extract.
 - **Renderer output is self-contained** (inline SVG/CSS/JS, system fonts, zero external
   requests) so it renders in the dashboard, an artifact, or a static host. Production can
   later swap to MapLibre + PMTiles for heavy vector layers (see the framework design doc).

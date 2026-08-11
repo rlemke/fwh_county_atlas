@@ -60,37 +60,26 @@ namespace county.atlas.workflows {
     }
 
     /** FAN-OUT: one BuildCountyAtlas per county leaf under `prefix`, distributed across
-      * the fleet. ~3,143 counties run in PARALLEL; wall-clock ~= the slowest county, not
-      * the sum. Add runners to go faster.
+      * the fleet. ~3,143 counties, run `concurrency` at a time; wall-clock ~= the total
+      * work divided across the runners serving BuildCountyAtlas. Add runners to go faster.
       *
-      * DELIBERATELY UNBOUNDED — do not add `limit` here until the stranding bug below
-      * is fixed.
+      * `concurrency` caps how many counties are in flight at once. Every county still
+      * runs — the cap only bounds width. The national run materialized 3,167 concurrent
+      * sub-blocks (3,290 tasks) while only 7 servers ever executed a task, so the
+      * overwhelming majority sat pending: width far beyond the number of runners
+      * serving the facet buys no throughput and costs step/task records, block-cascade
+      * work, and per-runner scratch disk for every county extract in flight.
       *
-      * A `limit $$.concurrency` cap was tried (2026-07-30) and REVERTED. The cap itself
-      * works: width held at exactly 32 and every county still ran. The problem is how it
-      * interacts with a pre-existing defect — leaf steps park at
-      * `state.statement.blocks.Begin` after their task completes and are never cascaded
-      * onward. Resuming such a leaf returns `iterations=4` and completes it instantly, so
-      * the work is done and only the state transition is missing.
-      *
-      * Unbounded, that stranding is survivable: the earlier national run stranded ~10%
-      * and still finished 3,167/3,167. Capped, it is fatal — the stranded sub-blocks hold
-      * every window slot, so admission stops. The live run froze at 628/3,167 and again
-      * at 1,368, and needed an external watchdog to proceed.
-      *
-      * The stuck-step sweep does not rescue it: it classifies all of these as block steps
-      * (`0 leaf + 68 block steps` in its own log) and spends its budget resuming the
-      * parent sub-blocks, which correctly return `iterations=0/PAUSED` because they are
-      * waiting on those very children.
-      *
-      * Re-add the cap only once a capped fan-out survives a runner restart unattended.
-      * See docs/architecture/ffl-foreach-limit.md. */
+      * The default leaves generous headroom over the observed executor count so no
+      * runner ever idles waiting for a slot. Raise it when running against a larger
+      * fleet; `limit 1` serialises for debugging. */
     workflow BuildAtlasFanout(
         prefix: String = "north-america/us",
         tier: Long = 1,
-        bucket: String = "osm-extracts"
+        bucket: String = "osm-extracts",
+        concurrency: Long = 32
     ) => (built: [String]) andThen {
-        children = county.atlas.ListCounties(prefix = $.prefix, bucket = $.bucket) andThen foreach cty in $.counties {
+        children = county.atlas.ListCounties(prefix = $.prefix, bucket = $.bucket) andThen foreach cty in $.counties limit $$.concurrency {
             leaf = county.atlas.BuildCountyAtlas(county_key = $.cty, tier = $$.tier, bucket = $$.bucket)
             yield BuildAtlasFanout(built = [leaf.html_path])
         }
