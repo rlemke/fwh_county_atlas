@@ -19,14 +19,25 @@ OUTPUT_PREFIX = "county-atlas"
 
 
 def s3_client():
-    import boto3
-    import botocore
-    return boto3.client(
-        "s3",
-        endpoint_url=os.environ.get("FW_S3_ENDPOINT", "http://afl-minio:9000"),
-        aws_access_key_id=os.environ.get("FW_S3_ACCESS_KEY", "minioadmin"),
-        aws_secret_access_key=os.environ.get("FW_S3_SECRET_KEY", "minioadmin"),
-        config=botocore.config.Config(read_timeout=300, retries={"max_attempts": 5}),
+    """The runtime's single S3 client construction.
+
+    ⚠️ Used rather than a local boto3.client() so there is ONE credential chain
+    and one MinIO config in the codebase. The read_timeout / max_attempts tuning
+    is PASSED THROUGH, not dropped: these downloads are multi-GB county PBFs, and
+    losing the 300s timeout would turn a slow object into a timeout rather than a
+    slow success.
+
+    ⚠️ The afl-minio / minioadmin defaults are passed explicitly, preserving this
+    module's historical behaviour exactly.
+    """
+    from facetwork.runtime.storage import s3_client as _client
+
+    return _client(
+        os.environ.get("FW_S3_ENDPOINT", "http://afl-minio:9000"),
+        access_key=os.environ.get("FW_S3_ACCESS_KEY", "minioadmin"),
+        secret_key=os.environ.get("FW_S3_SECRET_KEY", "minioadmin"),
+        read_timeout=300,
+        max_attempts=5,
     )
 
 
