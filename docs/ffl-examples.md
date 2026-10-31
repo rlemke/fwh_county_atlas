@@ -264,6 +264,8 @@ namespace my.atlas {
 | Fan out from a facet's list result | `step = List(…) andThen foreach v in $.field { … }` (then `$$` = workflow) |
 | Fan out from a CLI list | `workflow W(items: Json) … andThen foreach i in $.items { … }` (`$` = workflow) |
 | Order two independent steps | reference a field of the first from the second |
+| Order on an invisible dependency (object store) | `step = Facet(…) after other` — see §5 |
+| Bound a fan-out's width | `foreach v in $.field limit $$.concurrency { … }` |
 | More time / retries for one call | `… with Timeout(minutes = 90) with Retry(maxAttempts = 2, backoffSeconds = 120)` |
 | Handle a step failure | `step = Facet(…) catch { yield … }` |
 | Branch | `step = Facet(…) andThen when { case <bool> => { … } case _ => { … } }` |

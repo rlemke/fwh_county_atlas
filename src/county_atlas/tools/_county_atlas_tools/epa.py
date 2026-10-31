@@ -5,11 +5,10 @@ Envirofacts (``data.epa.gov/efservice/TRI_FACILITY``) by ``STATE_ABBR`` +
 ``COUNTY_NAME`` and returned as a point FeatureCollection — the same shape as an
 OSM point layer, so the renderer draws them identically (``public`` privacy).
 
-Not wired here: EPA Superfund / Brownfields. They live behind the EMEF ArcGIS
-MapServer (``geopub.epa.gov/.../EMEF/efpoints``), which only serves the *national*
-set (``where=1=1``) — its county / bbox filters 400. Wiring them per-county needs a
-national fetch cached once + a client-side bbox filter; left as a TODO rather than a
-national download per county. The catalog keeps them as "not available" meanwhile.
+EPA Superfund / Brownfields live behind the EMEF ArcGIS MapServer
+(``geopub.epa.gov/.../EMEF/efpoints``), which only serves the *national* set
+(``where=1=1``) — its county / bbox filters 400. So the national set is fetched
+once, cached under ``county-atlas/_shared/``, and bbox-clipped per county.
 """
 from __future__ import annotations
 

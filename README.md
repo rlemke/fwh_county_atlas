@@ -13,7 +13,7 @@ Full architecture: [`docs/architecture/county-atlas.md`](https://github.com/rlem
 
 | Area | Doc |
 |------|-----|
-| **Layer catalog** — the 91-layer registry, source kinds, privacy tiers, coverage | [`layers.json`](src/county_atlas/layers.json) |
+| **Layer catalog** — the 99-layer registry, source kinds, privacy tiers, coverage | [`layers.json`](src/county_atlas/layers.json) |
 | **Fan-out** — `ListCounties` → `foreach` → `BuildCountyAtlas`, one county per task | [`ffl/atlas.ffl`](src/county_atlas/ffl/atlas.ffl) |
 | **FFL usage patterns** — compile-checked example gallery over these facets | [`docs/ffl-examples.md`](docs/ffl-examples.md) |
 | **Renderer** — GeoJSON layers → self-contained interactive HTML (SVG map + checkbox tree) | [`render.py`](src/county_atlas/tools/_county_atlas_tools/render.py) |
@@ -31,17 +31,19 @@ Full architecture: [`docs/architecture/county-atlas.md`](https://github.com/rlem
 
 ## What's in the catalog
 
-91 layers across 14 categories — **included only when a real, downloadable,
+99 layers across 14 categories — **included only when a real, downloadable,
 national/county-resolution, openly-licensed source exists**:
 
 - **46 from the county OSM PBF** (ODbL) — boundaries, roads, parks, hydrology,
   landmarks, transit, government/healthcare/education POIs, land use. These render
   **live** from the extract.
-- **24 from Facetwork domains** — `census-us` (ACS + TIGER demographics/income/housing/
-  tracts), `health` (CDC PLACES/NCHS), `noaa-weather` (climate).
+- **33 from Facetwork domains** — `census-us` (20: ACS + TIGER demographics/income/
+  housing/tracts), `health` (12: CDC PLACES/NCHS), `noaa-weather` (1: climate).
 - **17 direct national fetches** — EPA (Superfund/Brownfields/TRI/air/water), USGS
   (elevation/faults/aquifers/quakes), FEMA (NRI hazard risk/flood), HUD, USDA.
-- **4 calculated** — isochrone coverage, per-capita, ratios (reuse `osm.Network`).
+- **3 calculated** — straight-line distance to the nearest park / hospital, and
+  rent as a share of income. Per-capita counts are indicator-panel stats, not
+  layers. True network isochrones (`osm.Network`) are not built yet.
 
 Layers with no uniform national open source (parcels, voting precincts, traffic volumes,
 crash points, encampments, response times…) are **excluded**, not faked. Privacy is an

@@ -20,6 +20,8 @@ src/county_atlas/
         ├── materialize.py  # osmium: county PBF -> per-layer GeoJSON
         ├── render.py       # GeoJSON -> self-contained HTML (SVG map + checkbox tree)
         ├── storage.py      # object-store I/O (county PBF in / atlas out)
+        ├── census.py health.py epa.py usgs.py fema.py hud.py tiger.py noaa.py  # tier-2 joins
+        ├── calc.py         # tier-3 calculated indicators
         └── atlas.py        # orchestration: list_counties / build_county_atlas / build_master_index
 ```
 
@@ -93,8 +95,8 @@ Tier-2 layers carry a small field naming their source; the matching module build
 - **`noaa.py`** — a `noaa_source` field (`stations`). GHCN-Daily station inventory
   (~10 MB) fetched ONCE and cached in the object store at `county-atlas/_shared/`, then
   bbox-filtered per county → station points. Parses via `noaa_weather`'s `parse_stations`
-  when installed, else a built-in fixed-width parser. **This is the shared-national-cache
-  pattern** EPA Superfund/Brownfields still need.
+  when installed, else a built-in fixed-width parser. Same shared-national-cache
+  pattern as EPA Superfund/Brownfields.
 
 Shared rules: choropleths render UNDER the OSM overlays; the UI makes them **mutually
 exclusive** (one thematic layer at a time) with a live legend. `aggregate` privacy →
@@ -102,10 +104,10 @@ tract areas, never points. Any failure (no key/data/network) returns `{}` and th
 stays "not available" — **never faked**. Adding a new tier-2 source = a `<source>.py`
 fetcher + a field on its catalog layers, following this pattern.
 
-**EPA Superfund / Brownfields are NOT wired:** their EMEF ArcGIS MapServer only serves
-the national set (`where=1=1`); county/bbox filters 400. Wiring them needs a national
-fetch cached once + a client-side bbox filter (a shared `_shared/` cache), not a national
-download per county — left as a TODO; the catalog keeps them "not available".
+**EPA Superfund / Brownfields** go through the shared national cache described under
+`epa.py` above: their EMEF ArcGIS MapServer only serves the national set (`where=1=1`;
+county/bbox filters 400), so the set is fetched once to `county-atlas/_shared/` and
+bbox-clipped per county.
 
 ## Tier-3 calculated indicators (`calc.py`)
 
@@ -145,6 +147,5 @@ assertion in the same change.
 - **True network isochrones** — the `nearest_distance` calc is straight-line; a real
   N-minute walk/drive coverage needs `osm.Network` (fwh_osm) graph routing per tract.
 - Master-index state/US pages beyond the flat grouped list.
-- Fleet registration (`domains.json` + image bake) — this is a local domain today.
 - Perf: NOAA parses ~125k stations per county build (~1–2 s). If it bites at fan-out
   scale, pre-parse the inventory into a compact cached JSON once.
